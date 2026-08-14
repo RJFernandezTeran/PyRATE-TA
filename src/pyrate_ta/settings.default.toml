@@ -111,6 +111,9 @@ residuals_hspace = 0.05
 # Default contour levels for contour maps.
 n_contours = 40
 
+# Linear threshold for arcsinh color scaling as a percentage of amplitude limit (0.1 to 100.0).
+asinh_pct = 5.0
+
 # Margins of the embedded 3x3 figure in figure fractions.
 panel_left = 0.09
 panel_right = 0.975
