@@ -144,6 +144,7 @@ class Settings:
     # Small vertical space between trace panel and residual panel
     residuals_hspace: float = 0.05
     n_contours: int = 40
+    asinh_pct: float = 5.0
 
 
     # Margins of the embedded 3x3 figure, in figure fractions. Tuned so the
@@ -301,6 +302,7 @@ class Settings:
             "residuals_height_ratio": "plots",
             "residuals_hspace": "plots",
             "n_contours": "plots",
+            "asinh_pct": "plots",
             "panel_left": "plots",
 
 
@@ -528,6 +530,7 @@ _SPEC_OVERRIDES: dict[str, dict[str, Any]] = {
     "fit_monitor_every": {"label": "Live parameter update every N evals", "min": 0, "max": 1000},
     "fit_monitor_scale": {"kind": "choice", "choices": ["symlog", "log", "linear"]},
     "n_contours": {"label": "Default contour levels", "min": 2, "max": 500, "tab": "plots"},
+    "asinh_pct": {"label": "arcsinh linear threshold (%)", "min": 0.1, "max": 100.0, "tab": "plots"},
 
     "table_decimals": {"min": 1, "max": 12},
     "window_width": {"min": 400, "max": 10000},
