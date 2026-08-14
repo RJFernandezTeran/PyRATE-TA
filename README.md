@@ -7,7 +7,6 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/pyrate-ta.svg?logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/pyrate-ta/)
 [![GitHub Release](https://img.shields.io/github/v/release/RJFernandezTeran/PyRATE-TA?logo=github&label=Release)](https://github.com/RJFernandezTeran/PyRATE-TA/releases)
 [![Python >= 3.12](https://img.shields.io/badge/python-%3E%3D3.12-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
-[![PyPI - Python Version](https://img.shields.io/pypi/pyversions/pyrate-ta.svg?logo=python&logoColor=white)](https://pypi.org/project/pyrate-ta/)
 [![GUI: PyQt6](https://img.shields.io/badge/GUI-PyQt6-41CD52.svg?logo=qt&logoColor=white)](https://riverbankcomputing.com/software/pyqt/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -18,7 +17,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/RJFernandezTeran/PyRATE-TA?style=flat&logo=github)](https://github.com/RJFernandezTeran/PyRATE-TA/stargazers)
 [![GitHub Forks](https://img.shields.io/github/forks/RJFernandezTeran/PyRATE-TA?style=flat&logo=github)](https://github.com/RJFernandezTeran/PyRATE-TA/network/members)
 [![GitHub Issues](https://img.shields.io/github/issues/RJFernandezTeran/PyRATE-TA?logo=github)](https://github.com/RJFernandezTeran/PyRATE-TA/issues)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/pyrate-ta.svg?logo=pypi&logoColor=white)](https://pypi.org/project/pyrate-ta/)
+[![Downloads](https://img.shields.io/pepy/dt/pyrate-ta?label=downloads)](https://pepy.tech/project/pyrate-ta)
 
 Kinetic analysis of ultrafast time-resolved spectroscopy data: **multi-exponential**
 fitting, **global** analysis and **target** analysis with rate-matrix (K-matrix)
