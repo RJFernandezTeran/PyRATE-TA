@@ -12,10 +12,10 @@ import pyrate_ta as pr
 
 
 def test_version_scheme():
-    """Version must parse as 0.<minor>.<yymmdd>.dev<N> (PEP 440)."""
+    """Version must parse as <major>.<yymmdd>.<N> (PEP 440)."""
     import re
 
-    assert re.fullmatch(r"\d+\.\d+\.\d{6}\.dev\d+", pr.__version__), pr.__version__
+    assert re.fullmatch(r"\d+\.\d{6}\.\d+", pr.__version__), pr.__version__
 
 
 def test_all_exports_resolve():
