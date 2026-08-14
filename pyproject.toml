@@ -1,0 +1,81 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pyrate-ta"
+dynamic = ["version"]
+description = "Kinetic analysis of time-resolved spectroscopy: multi-exponential, global and target analysis."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+authors = [{ name = "Dr. Ricardo J. Fernández-Terán" }]
+urls = { Homepage = "https://github.com/RJFernandezTeran/PyRATE-TA", Documentation = "https://github.com/RJFernandezTeran/PyRATE-TA#readme", Repository = "https://github.com/RJFernandezTeran/PyRATE-TA.git", "Bug Tracker" = "https://github.com/RJFernandezTeran/PyRATE-TA/issues" }
+dependencies = [
+    # PyMORGAN owns loading, the Dataset objects, Settings and every plotter.
+    # The dependency is one-way: pyrate_ta imports pymorgan, never the reverse.
+    "pymorgan>=0.6",
+    "numpy>=2.1.0",
+    "scipy>=1.14.1",
+    "tomlkit>=0.13",
+    "PyQt6>=6.7.1",
+    "PyQt6-sip>=13.8.0",
+]
+
+[project.optional-dependencies]
+gui = []
+dev = ["ruff>=0.6", "pytest>=8"]
+# Optional: GUI test helpers (qtbot); needs Qt runtime libs present.
+gui-dev = ["pytest-qt>=4"]
+
+# Co-development: PyMORGAN is picked up from the sibling checkout, so upstream
+# edits are visible without a reinstall. Replace with a plain version pin once
+# PyMORGAN is published to an index.
+[tool.uv.sources]
+pymorgan = { path = "../PyMORGAN", editable = true }
+
+[project.scripts]
+pyrate-ta-gui = "pyrate_ta.gui.app:main"
+pyrate-ta-edit-gui = "pyrate_ta.gui.designer:main"
+pyrate-ta-settings = "pyrate_ta.gui.settings_app:main"
+pyrate-ta-cite = "pyrate_ta.cite:print_citations"
+# Fonts are installed by PyMORGAN (``pymorgan-install-fonts``); PyRATE-TA uses the
+# same ones and deliberately does not ship a second installer.
+
+[tool.hatch.version]
+path = "src/pyrate_ta/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pyrate_ta"]
+dev-mode-dirs = ["src"]
+
+# Non-Python assets, mirroring PyMORGAN. Add the Qt Designer .ui files here as
+# the GUI is built out, otherwise they are missing from an installed wheel.
+[tool.hatch.build.targets.wheel.force-include]
+"src/pyrate_ta/gui/icons" = "src/pyrate_ta/gui/icons"
+"src/pyrate_ta/gui/main_window.ui" = "src/pyrate_ta/gui/main_window.ui"
+"src/pyrate_ta/gui/scheme_dialog.ui" = "src/pyrate_ta/gui/scheme_dialog.ui"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["old_code", "local", "*.m"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "W"]
+ignore = [
+    "E501",  # line length handled by the formatter
+    "E741",  # ambiguous names (l, I, O) are common in scientific code
+    "UP031", # percent-formatting is pervasive in the plotting code
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]           # re-exports
+"tests/conftest.py" = ["E402"]     # matplotlib.use() before imports
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

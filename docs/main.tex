@@ -1,0 +1,148 @@
+% PyRATE-TA — Kinetic analysis and user manual.
+% Build with:  pdflatex main.tex  (run twice, for the table of contents)
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[UKenglish]{isodate} % To fix the date
+\usepackage[T1]{fontenc}
+\usepackage{tgtermes}
+
+\usepackage[utf8]{inputenc}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+
+\usepackage{microtype}        % best single improvement
+	\emergencystretch=3em         % last-resort stretch to avoid overfull
+	\tolerance=800                % default 200; higher = more flexible
+	\hbadness=1000                % silence minor warnings
+
+% --- Code listing style ----------------------------------------------------
+\definecolor{codegray}{gray}{0.95}
+\definecolor{codekw}{rgb}{0.10,0.30,0.65}
+\definecolor{codestr}{rgb}{0.20,0.50,0.20}
+\definecolor{codecom}{rgb}{0.45,0.45,0.45}
+\lstdefinestyle{py}{
+  language=Python,
+  backgroundcolor=\color{codegray},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{codekw}\bfseries,
+  stringstyle=\color{codestr},
+  commentstyle=\color{codecom}\itshape,
+  showstringspaces=false,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{codegray},
+  columns=fullflexible,
+}
+\lstset{style=py}
+
+% --- Convenience macros ----------------------------------------------------
+\newcommand{\code}[1]{\texttt{#1}}
+\newcommand{\dA}{\ensuremath{\Delta A}}
+\newcommand{\Kmat}{\ensuremath{\mathbf{K}}}
+\newcommand{\Cmat}{\ensuremath{\mathbf{C}}}
+\newcommand{\Smat}{\ensuremath{\mathbf{S}}}
+\newcommand{\Dmat}{\ensuremath{\mathbf{D}}}
+
+% --- Feature-status marker -------------------------------------------------
+% Sections describing a design that is specified but not yet implemented are
+% marked, so the manual never reads as if an engine already existed.
+\newcommand{\planned}{\textcolor{codekw}{\textbf{[planned]}}\ }
+
+\title{\textbf{PyRATE-TA}\\[0.3em]
+  \large Rate Analysis \& Target-model Engine for Transient Absorption\\
+  \large Kinetic analysis and user manual}
+\author{Dr. Ricardo J. Fernández-Terán}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\bigskip
+
+\section{Introduction}
+PyRATE-TA fits time-resolved spectroscopy data: multi-exponential decays, global
+analysis with the amplitudes solved by variable projection, target analysis
+with a general rate matrix, and lifetime density analysis (LDA) over a dense
+regularised grid --- together with the decay-, evolution- and species-associated
+spectra that come out of them.
+
+PyRATE-TA is the analysis half of a two-project pair. Its sibling,
+\textbf{PyMORGAN}, owns loading, processing and plotting: the file-format
+readers and their registry, the \code{Dataset1D}/\code{Dataset2D} objects, the
+aesthetics layer and every standard plotter. The dependency is strictly
+one-way --- \code{pyrate} imports \code{pymorgan}, never the reverse --- and
+PyRATE-TA reimplements none of it. A format PyRATE-TA needs and PyMORGAN lacks is
+contributed upstream, not forked here. Chapter~\ref{sec:boundary} makes that
+boundary explicit, because most confusion about where a piece of code belongs
+is resolved by it.
+
+This manual documents the analysis model and the programming interface.
+Chapter~\ref{sec:installation} covers installation;
+chapter~\ref{sec:boundary} the PyMORGAN boundary;
+chapter~\ref{sec:models} the kinetic models and the rate-matrix formalism;
+chapter~\ref{sec:fitting} the fitting engines, result objects, session files
+and reproducibility requirements;
+chapter~\ref{sec:gui} the graphical interface;
+chapter~\ref{sec:settings} every setting and the configuration file; and
+chapter~\ref{sec:extending} how to add a model, an engine or a GUI panel.
+
+\section{Citing PyRATE-TA}\label{sec:citing}
+If you publish results obtained with PyRATE-TA, please cite the following. The
+same list is printed by \code{pyrate-ta-cite} and logged when the GUI starts.
+
+\begin{enumerate}
+  \item The PyRATE-TA / PyMORGAN software paper --- \emph{manuscript in
+    preparation}.
+  \item R.\ J.\ Fern\'andez-Ter\'an, E.\ Sucre-Rosales, L.\ Echevarria,
+    F.\ E.\ Hern\'andez, \emph{A Sweet Introduction to the Mathematical
+    Analysis of Time-Resolved Spectra and Complex Kinetic Mechanisms: The
+    Chameleon Reaction Revisited}, J.\ Chem.\ Educ.\ \textbf{2022}, 99,
+    2327--2337. \href{https://doi.org/10.1021/acs.jchemed.2c00104}%
+    {10.1021/acs.jchemed.2c00104}
+  \item I.\ H.\ M.\ van Stokkum, D.\ S.\ Larsen, R.\ van Grondelle,
+    \emph{Global and target analysis of time-resolved spectra}, Biochim.\
+    Biophys.\ Acta Bioenerg.\ \textbf{2004}, 1657, 82--104.
+    \href{https://doi.org/10.1016/j.bbabio.2004.04.011}%
+    {10.1016/j.bbabio.2004.04.011} --- global and target analysis, and the
+    variable-projection formalism (chapter~\ref{sec:fitting}).
+  \item M.\ N.\ Berberan-Santos, J.\ M.\ G.\ Martinho, \emph{The integration of
+    kinetic rate equations by matrix methods}, J.\ Chem.\ Educ.\ \textbf{1990},
+    67, 375. \href{https://doi.org/10.1021/ed067p375}{10.1021/ed067p375} ---
+    the eigenvector solution used by the propagator
+    (section~\ref{sec:kmat}).
+  \item P.\ C.\ Hansen, \emph{Analysis of discrete ill-posed problems by means
+    of the L-curve}, SIAM Review \textbf{1992}, 34, 561--580 ---
+    L-curve corner detection for automatic regularisation in LDA
+    (section~\ref{sec:lda}).
+  \item G.\ H.\ Golub, M.\ Heath, G.\ Wahba, \emph{Generalized
+    cross-validation as a method for choosing a good ridge parameter},
+    Technometrics \textbf{1979}, 21, 215--223 ---
+    GCV alpha selection for LDA (section~\ref{sec:lda}).
+  \item U.\ Megerle, R.\ Lechner, E.\ Riedle, \emph{Lifetime density analysis
+    of femtosecond transient absorption spectra}, Phys.\ Chem.\ Chem.\ Phys.\
+    \textbf{2011}, 13, 8869--8877 ---
+    the LDA formalism as applied to ultrafast spectroscopy.
+\end{enumerate}
+
+A routine implementing a published method also logs its own reference through
+\code{pyrate_ta.cite} when it runs, so the log of a fit records which formalism
+produced it, and each reference appears only once per session.
+
+\input{installation}
+\input{boundary}
+\input{models}
+\input{fitting}
+\input{gui}
+\input{settings}
+\input{extending}
+
+\section{License}\label{sec:license}
+PyRATE-TA is free software released under the \textbf{GNU Affero General Public License version~3.0} (\textsf{AGPLv3}).
+You are free to run, inspect, modify and redistribute this software under the terms of the license. Any derivative works or modifications made available over a network or server must also make their complete corresponding source code available under the same license terms.
+
+\end{document}

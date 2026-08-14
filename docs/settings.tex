@@ -1,0 +1,201 @@
+\section{Settings}\label{sec:settings}
+
+\subsection{Two settings objects}
+
+Presentation --- label style, colourmap, time-axis convention, figure sizes ---
+belongs to \code{pymorgan.Settings} and is read through
+\code{pm.get\_settings()} after \code{pm.apply\_style()}. PyRATE-TA's own
+\code{Settings} holds \emph{analysis-only} fields, listed in
+Table~\ref{tab:settings}. There is deliberately no second aesthetics system.
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{llll}
+    \toprule
+    Field & Default & Group & Meaning \\
+    \midrule
+    \code{n\_components}        & 2            & fit    & Components proposed for a new fit \\
+    \code{model\_type}          & Sequential   & fit    & Default model family \\
+    \code{irf\_mode}            & Gaussian     & fit    & \code{None} / \code{Gaussian} / \code{Clip} \\
+    \code{irf\_fwhm}            & \code{None}  & fit    & Fixed IRF width; \code{None} fits it \\
+    \code{t\_min}               & \code{None}  & fit    & Clip delays below this (mode \code{Clip}) \\
+    \code{ftol}                 & $10^{-8}$    & solver & Termination tolerance on the cost \\
+    \code{xtol}                 & $10^{-8}$    & solver & Termination tolerance on the parameters \\
+    \code{max\_iterations}      & 2000         & solver & Cap on iterations; exceeding it is a failure \\
+    \code{variable\_projection} & \code{True}  & solver & Solve amplitudes in closed form \\
+    \code{report\_uncertainties}& \code{True}  & solver & Report linearised 1-$\sigma$ errors \\
+    \code{use\_noise\_weights}  & \code{False} & solver & Weight residuals by the per-point noise \\
+    \code{noise\_floor\_fraction} & $10^{-3}$  & solver & Clip $\sigma$ below this fraction of the median \\
+    \code{degeneracy\_warn\_ratio} & 1.2       & solver & Warn when two lifetimes come this close \\
+    \midrule
+    \code{default\_datadir}     & \code{None}  & paths  & Directory offered by the file dialog \\
+    \bottomrule
+  \end{tabular}
+  \caption{The analysis settings that appear in the settings dialog. LDA
+    parameters are not listed here; they are set via the GUI LDA tab or
+    directly in \code{settings.toml} for headless use
+    (Table~\ref{tab:lda-settings}).}
+  \label{tab:settings}
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{llll}
+    \toprule
+    Field & Default & Meaning \\
+    \midrule
+    \code{lda\_n\_lifetimes}      & 100          & Grid points in the lifetime axis \\
+    \code{lda\_tau\_min}          & \code{None}  & Grid lower bound; \code{None} = auto \\
+    \code{lda\_tau\_max}          & \code{None}  & Grid upper bound; \code{None} = auto \\
+    \code{lda\_regularisation}   & L-curve      & Alpha selection: \code{L-curve} / \code{GCV} / \code{Fixed} \\
+    \code{lda\_alpha}            & $10^{-3}$    & Strength used when \code{lda\_regularisation} is \code{Fixed} \\
+    \code{lda\_non\_negative}    & \code{False} & Constrain distribution to $\ge 0$ \\
+    \bottomrule
+  \end{tabular}
+  \caption{LDA default settings, stored in the \code{[lda]} section of
+    \code{settings.toml}. These do \emph{not} appear in the settings dialog;
+    the GUI LDA tab reads them at start-up to pre-populate its widgets, which
+    are then the single control surface for an interactive session.}
+  \label{tab:lda-settings}
+\end{table}
+
+Turning \code{variable\_projection} off is almost always the wrong choice
+(section~\ref{sec:varpro}); it is exposed for diagnostics only.
+
+\subsection{Design}
+
+\code{Settings} is a dataclass and \textbf{the dataclass field is the single
+source of truth}. \code{\_\_post\_init\_\_} (which coerces enums),
+\code{to\_dict}, \code{from\_dict} and \code{update\_settings} all derive from
+\code{dataclasses.fields()}, so adding a setting needs only the field. Enums are
+\code{enum.StrEnum}: \code{str(member)} is the value, so they serialise and
+compare as plain strings while staying type-checked.
+
+\code{Settings.field\_specs()} drives the GUI settings panel: \code{label},
+\code{kind} (\code{choice} / \code{float} / \code{int} / \code{bool} /
+\code{text}), optional \code{choices} / \code{min} / \code{max} /
+\code{step} / \code{tooltip}, and \code{tab}. The method is \emph{derived}
+rather than hand-written: every dataclass field gets an entry automatically,
+with the widget kind read from its annotation, the page from
+\code{field\_sections()} and the tooltip from \code{field\_comments()}.
+\emph{A setting without an entry there does not appear in the panel} ---
+which is the intended way to hide an internal knob, and the usual explanation
+for a new setting not showing up. A small override table refines labels and
+ranges, and can hide a deprecated field.
+
+\subsection{Sections of the file}
+
+\code{settings.toml} is grouped by concern, with a comment above every key:
+\code{[fit]} (defaults for a new fit), \code{[solver]} (optimiser limits,
+weighting, reporting), \code{[irf]}, \code{[lda]} (LDA defaults for headless
+and scripted use), \code{[gui]} and \code{[paths]}. The mapping from field to
+section is \code{Settings.field\_sections()}, and it is exhaustive: a field
+with no section raises on save rather than being written where the loader would
+not find it.
+
+\paragraph{The \code{[lda]} block and the two control surfaces.}
+LDA has two ways to set its parameters:
+\begin{itemize}
+  \item \textbf{Interactive}: the GUI LDA tab --- dropdowns, spinboxes and
+    checkboxes. These are the canonical control surface during a session.
+  \item \textbf{Headless / scripted}: \code{settings.toml} under \code{[lda]}.
+    Keyword arguments to \code{solve\_lda} override everything for a single
+    call.
+\end{itemize}
+\noindent
+The \code{[lda]} block does \emph{not} appear in the settings dialog, because
+that would create two places to set the same parameters. Instead, the GUI reads
+\code{lda\_*} fields from the active \code{Settings} once at start-up and
+loads them into the tab's widgets (\code{LDATabMixin.\_init\_lda\_tab\_from\_settings}),
+so editing \code{settings.toml} changes the defaults the GUI sees the next time
+it opens.
+
+\noindent
+The same precedence applies for scripted use:
+
+\begin{lstlisting}
+# defaults from settings.toml
+result = pr.fit.lda.solve_lda(data)
+
+# or override explicitly --- keyword args always win
+result = pr.fit.lda.solve_lda(
+    data,
+    n_taus=200,
+    alpha="auto",
+    alpha_method="gcv",
+    non_negative=True,
+)
+\end{lstlisting}
+
+A flat file --- the older layout --- is still read, so an existing
+configuration is never orphaned.
+
+\subsection{The configuration file}
+
+Settings are read from and written to \code{settings.toml} with \code{tomlkit},
+so user comments survive a save. The file is looked up in the working
+directory first, then at the project root.
+
+\begin{lstlisting}
+import pyrate_ta as pr
+
+pr.load_settings("settings.toml")
+pr.update_settings(n_components=3, irf_mode="Clip", t_min=0.3)
+pr.save_settings("settings.toml")
+\end{lstlisting}
+
+\code{update\_settings} rejects unknown names rather than storing them, so a
+typo fails immediately instead of silently doing nothing.
+
+\subsection{The settings editor}
+
+\code{uv run pyrate-ta-settings} opens a standalone editor whose pages and fields
+are generated from \code{field\_specs()}; \emph{Save permanently} writes them
+back to \code{settings.toml}. A value the settings layer rejects is logged and
+reverted in the widget rather than silently dropped. \code{settings.py} itself
+never imports Qt.
+
+The same editor is reachable from the main window under
+\emph{View $\rightarrow$ Settings...}, in a dialog with two halves:
+\emph{Analysis (PyRATE-TA)} and \emph{Aesthetics (PyMORGAN)}. Both panels edit
+their own package's settings live --- the embedded plots re-render as values
+change --- and \emph{Save permanently} writes each half back to \emph{its own}
+\code{settings.toml}. PyMORGAN's file is located from the installed package
+rather than from the working directory: when PyRATE-TA is the host, the
+\code{settings.toml} in the working directory is PyRATE-TA's, and writing
+PyMORGAN's fields into it would overwrite the wrong file.
+
+\subsection{Both files are loaded}
+
+The GUI loads PyRATE-TA's \code{settings.toml} \emph{and} PyMORGAN's. Without the
+second, PyMORGAN's settings stayed at their dataclass defaults, so a profile or
+a \code{font\_scale} chosen in PyMORGAN was ignored here and the same data was
+drawn with a different font stack --- which is what makes a PyRATE-TA figure look
+unlike a PyMORGAN one while both claim the same style. PyMORGAN's file is
+located from the installed package, never from the working directory, for the
+reason given above.
+
+Fonts themselves are PyMORGAN's (\code{Helvetica, TeX Gyre Heros, Arial}, from
+its \code{.mplstyle}) and PyRATE-TA applies them unchanged, but the
+\emph{installation} is per environment: a PyRATE-TA virtual environment that has
+never run \code{pymorgan-install-fonts} falls back to DejaVu Sans. The GUI
+therefore checks at start-up and says so, with the command to run.
+
+\subsection{How results are quoted}
+
+Two settings in \code{[plots]} govern every lifetime PyRATE-TA prints:
+
+\begin{description}
+  \item[\code{show\_uncertainties}] Whether the $\pm$ appears at all, in the
+    plot legends and the logged fit summary.
+  \item[\code{round\_uncertainties}] Round a value \emph{together with} its
+    uncertainty: the uncertainty to one significant figure and the value to
+    \emph{that same decimal place}, so $325.3 \pm 2.5$ is quoted as
+    $325 \pm 3$, $297.5 \pm 1.38$ as $298 \pm 1$ and $8.036 \pm 0.0234$ as
+    $8.04 \pm 0.02$. This keeps a fitted constant from being presented with
+    more precision than its own uncertainty supports. Halves round \emph{up}
+    ($2.5 \rightarrow 3$): an uncertainty should never be rounded down.
+\end{description}
+
+Both are applied at the point of display only; the result object keeps the full
+precision, so a saved session and the copied lifetimes are unaffected.

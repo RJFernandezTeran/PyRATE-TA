@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SchemeDialog</class>
+ <widget class="QDialog" name="SchemeDialog">
+  <property name="geometry"><rect><x>0</x><y>0</y><width>980</width><height>560</height></rect></property>
+  <property name="windowTitle"><string>Define kinetic model</string></property>
+  <layout class="QVBoxLayout" name="dialogLayout">
+   <item>
+    <layout class="QHBoxLayout" name="mainRow">
+     <item>
+      <layout class="QVBoxLayout" name="leftColumn">
+       <item><widget class="QLabel" name="NotationHelp">
+         <property name="text"><string>One reaction per line:   &lt;b&gt;A -&amp;gt; B : k1&lt;/b&gt;   (step)　　&lt;b&gt;A &amp;lt;-&amp;gt; B : k1, k2&lt;/b&gt;   (equilibrium)　　&lt;b&gt;A -&amp;gt; : k3&lt;/b&gt;   (decay to the ground state)&lt;br&gt;Species and rate names are yours. &lt;b&gt;Repeating a rate name shares one fitted parameter&lt;/b&gt; between those arrows. &lt;b&gt;init A = 1&lt;/b&gt; sets the starting populations; &lt;b&gt;#&lt;/b&gt; starts a comment.</string></property>
+         <property name="wordWrap"><bool>true</bool></property>
+         <property name="textFormat"><enum>Qt::RichText</enum></property></widget></item>
+       <item><widget class="QPlainTextEdit" name="SchemeText">
+         <property name="minimumSize"><size><width>380</width><height>240</height></size></property>
+         <property name="toolTip"><string>The kinetic scheme, written as reactions. The rate matrix is derived from it.</string></property></widget></item>
+       <item>
+        <layout class="QHBoxLayout" name="buttonRow">
+         <item><widget class="QPushButton" name="UpdateGraphButton">
+           <property name="text"><string>Update K graph</string></property>
+           <property name="toolTip"><string>Parse the scheme, check that it builds a valid rate matrix, and redraw the graph</string></property></widget></item>
+         <item><widget class="QComboBox" name="TemplateCombo">
+           <property name="toolTip"><string>Start from a predefined scheme</string></property></widget></item>
+         <item><spacer name="buttonSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property>
+           <property name="sizeHint" stdset="0"><size><width>20</width><height>10</height></size></property></spacer></item>
+        </layout>
+       </item>
+       <item><widget class="QLabel" name="StatusLabel">
+         <property name="text"><string/></property>
+         <property name="wordWrap"><bool>true</bool></property></widget></item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="rightColumn">
+       <item><widget class="WidgetPlot" name="SchemeAxes" native="true">
+         <property name="minimumSize"><size><width>420</width><height>300</height></size></property></widget></item>
+       <item><widget class="QLabel" name="MatrixLabel"><property name="text"><string>Rate matrix K (k = 1):</string></property></widget></item>
+       <item><widget class="QTableWidget" name="MatrixTable">
+         <property name="minimumSize"><size><width>0</width><height>120</height></size></property>
+         <property name="toolTip"><string>The derived rate matrix, evaluated with every rate set to 1</string></property>
+         <property name="editTriggers"><set>QAbstractItemView::NoEditTriggers</set></property></widget></item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item><widget class="QDialogButtonBox" name="ButtonBox">
+     <property name="orientation"><enum>Qt::Horizontal</enum></property>
+     <property name="standardButtons"><set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set></property></widget></item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>WidgetPlot</class>
+   <extends>QWidget</extends>
+   <header>pymorgan.gui.widgetplot</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

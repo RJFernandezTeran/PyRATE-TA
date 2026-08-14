@@ -1,0 +1,211 @@
+\section{The graphical interface}\label{sec:gui}
+
+Launch with \code{uv run pyrate-ta-gui} (or \code{python -m pyrate_ta.gui}). The
+window reuses
+PyMORGAN's plot widget, plot-controls panel and theme so the two applications
+look identical side by side.
+
+\subsection{Layout}
+
+The window is a single narrow control column on the left and a plot area on the
+right; nothing is scattered across the width, so the default geometry stays
+compact.
+
+\begin{description}
+  \item[Left column] Four stacked groups: \emph{Data} (load, clear and two
+    lamps --- one for the dataset, one for the per-point noise; there is no
+    format selector, since a fit needs a PDAT and its \code{.pdatn} sibling is
+    picked up automatically), \emph{Model Selection}
+    (\emph{Parallel} / \emph{Sequential} / \emph{Target} / \emph{ODE-defined}),
+    \emph{Components} (the lifetime table with its bounds and fixed flags, and
+    the add/remove buttons), \emph{IRF and time-zero}, and \emph{Fit options}
+    (algorithm, restrict-to-display, noise weighting). The algorithm defaults
+    to Trust Region Reflective: lifetimes are bounded below by zero, and
+    MINPACK's Levenberg-Marquardt cannot honour bounds at all, so choosing it
+    with finite bounds is refused rather than silently ignoring them.
+  \item[Fit control] At the foot of the left column: the data / fit / residuals
+    view selector, \emph{Preview}, \emph{FIT DATA}, \emph{Reset}, the statistic
+    read-out, \emph{Copy taus}, and the two post-fit figures ---
+    \emph{Plot DAS} (named after the model: DAS, EAS or SAS) and
+    \emph{Plot Conc. Profile}. Both open in their own window, and both are
+    opened automatically when a fit finishes; each has its own switch
+    (\code{plot\_species\_after\_fit}, \code{plot\_profiles\_after\_fit}) in the
+    \code{[gui]} section of \code{settings.toml}. A preview does not trigger
+    them: it is a look at a guess, not a result.
+  \item[Plot area] One figure, not three, so the window carries a single
+    navigation toolbar. Its axes form a $3\times3$ grid: the contour takes the
+    top-left $2\times2$ block (twice the size of the others), the kinetics
+    panel the $2\times1$ column beside it and the transient spectra the
+    $1\times2$ row below. The bottom-right cell holds no axis --- the
+    \emph{Additional Plots and cuts} group sits there.
+
+    The kinetics panel is drawn \emph{rotated} (PyMORGAN's
+    \code{swap\_axes}), so its delay axis runs vertically like the contour's.
+    Both shared axes then line up --- probe between the contour and the
+    spectra, delay between the contour and the kinetics --- and the duplicated
+    tick labels are dropped. Measured data are drawn as translucent points and
+    the fit as a thin line over them, both configurable in the \code{[plots]}
+    section of \code{settings.toml}.
+
+    The legends of these panels are always drawn \emph{inside} their axes,
+    whatever \code{[plot] legend\_location} says in PyMORGAN's settings: three
+    panels share one figure, so a legend parked beside an axis lands on its
+    neighbour or off the canvas. The setting still governs every stand-alone
+    figure PyRATE-TA opens --- pop-out cuts, species spectra, concentration
+    profiles --- where beside the axis is PyMORGAN's default and usual look.
+  \item[Bottom] The plot-controls panel: axis limits, colour scale, contour
+    levels, time-axis convention and probe units.
+\end{description}
+
+The embedded figure sets its margins explicitly (\code{[plots] panel\_left},
+\code{panel\_right}, \code{panel\_top}, \code{panel\_bottom} and the two gaps)
+rather than calling \code{tight\_layout}: it shares a canvas with the controls
+panel, and the automatic layout leaves the axes noticeably smaller than the
+window allows.
+
+The four \emph{Additional plots and cuts} buttons open stand-alone PyMORGAN
+figures. The two cut plots ask which cuts to draw, pre-filled with the
+crosshair's position: the crosshair picks one cut, which is what the embedded
+panels show, whereas a separate figure is where several are compared. The
+prompt is PyMORGAN's (\code{gui.dialogs.ask\_values}), so the syntax ---
+numbers, ranges such as \code{1900:5:1950}, or \code{all} --- is the same as in
+PyMORGAN's own cut plots.
+
+\subsection{Fitting on a small screen}
+
+The window opens at $940 \times 900$ and is clipped at start-up to the
+\emph{available} screen area --- which already excludes the menu bar and the
+dock --- then centred, so a geometry saved on a large monitor cannot reopen
+half under the dock on a laptop.
+
+Being able to \emph{ask} for a small window is not enough: a layout whose
+minimum size hint exceeds the screen simply refuses to shrink. The left column
+therefore lives in a scroll area, so the window's minimum height is set by the
+plot canvas alone and the controls stay reachable by scrolling when there is not
+room for all of them at once.
+
+Buttons are coloured by function, following the same palette as PyMORGAN --- a
+contour button looks like a contour button in both applications --- and the
+mapping lives in \code{gui/mw\_common.py} rather than in the \code{.ui}, so it
+stays theme-responsive. Controls whose feature is not implemented yet are
+disabled and carry the reason in their tooltip, rather than being present and
+silently doing nothing.
+
+\subsection{The K-matrix editor}
+
+\emph{Define model...} opens the scheme editor: the scheme as text on the left
+(section~\ref{sec:notation}), its graph and the derived rate matrix on the
+right. \emph{Update K graph} redraws \emph{and} checks --- a scheme that does
+not parse produces its error, with the line number, instead of a picture, so
+the button answers ``would this scheme work?'' before a fit is started, and
+\emph{OK} stays disabled until it does. The matrix is shown with every rate set
+to $1$, since what is being checked there is the structure, not the values.
+Accepting the scheme sets the lifetime table to one row per rate constant,
+named after it.
+
+\emph{Show kinetic graph}, beside it, draws the scheme of whatever model is
+currently selected --- compartments, arrows and rate \emph{symbols}
+($k_1$, $k_2$, \dots, not their values) --- in its own window. It works before
+any fit, from the lifetimes as typed, so a scheme can be checked while it is
+being built; after a fit it draws the fitted one.
+
+\subsection{The LDA tab}
+
+A separate \emph{LDA} tab gives access to Lifetime Density Analysis
+(section~\ref{sec:lda}) without switching away from the same dataset. Its
+controls map directly to the keyword arguments of \code{solve\_lda}:
+
+\begin{description}
+  \item[Grid] Number of log-spaced lifetime points and the
+    $[\tau_\text{min},\,\tau_\text{max}]$ range (auto-filled from the delay axis).
+  \item[Regularisation] Penalty type (\code{ridge} / \code{d1} / \code{d2}) and
+    the alpha method (\code{lcurve} / \code{gcv} / \code{morozov} / \code{fixed}).
+    When \emph{fixed} is selected an alpha entry box appears.
+  \item[Options] Non-negative constraint, SVD pre-filtering (number of
+    components), coherent-artefact suppression, and bootstrap iterations.
+  \item[Run LDA] Executes \code{solve\_lda} headlessly and populates the
+    results table and the lifetime-density map.
+\end{description}
+
+After a successful run the tab shows: the integrated amplitude spectrum
+$A(\tau) = \sum_p |S_{p}(\tau)|$, the L-curve or GCV score plot (for diagnosing
+the alpha choice), and a 2D heatmap $S(\tau,\lambda)$. Detected peaks are
+listed in a table with their centroid lifetimes. The result can be exported to a
+\code{.pdat} file with \emph{Export map\ldots} for further plotting in PyMORGAN.
+
+\subsection{Reading a fit}
+
+Two figures carry the result, and both are opened automatically when the fit
+converges (buttons reopen them at will):
+
+\begin{description}
+  \item[Species spectra] The amplitude spectrum of each component, drawn by
+    PyMORGAN's \code{plot\_species\_spectra} through the result's
+    \code{as\_species\_args()}. Their name follows the model, and so does the
+    button: DAS for parallel, EAS for sequential, SAS for target. The
+    distinction is not cosmetic --- it is what the spectra may be interpreted
+    as.
+  \item[Concentration profiles] The populations $C(t)$ of the model itself: one
+    of the few views PyMORGAN has no concept of, since they are never measured.
+    Component $i$ carries the same colour as its spectrum, and the delay axis
+    comes from PyMORGAN's \code{apply\_delay\_axis}, so the profiles can be laid
+    beside the contour and read on the same time axis. For a sequential or
+    target model this is where the plot earns its keep: it shows \emph{when}
+    each species is present, and therefore which spectrum can be trusted where.
+\end{description}
+
+\subsection{Layout is declared, not built}
+
+All widgets, layouts, containers and controls are declared in the Qt Designer
+file \code{src/pyrate_ta/gui/main\_window.ui}. Python code binds signals, slots,
+dynamic styles and data states to widgets defined there; it does not construct
+them. Edit the layout with
+
+\begin{lstlisting}[language=bash, style=py]
+uv run pyrate-ta-edit-gui        # or: python -m pyrate_ta.gui.designer
+\end{lstlisting}
+
+The plot area is promoted to PyMORGAN's \code{WidgetPlot}, and the whole
+plot-controls group (\code{PC\_box}) is the one from PyMORGAN's layout, name for
+name, so that \code{pymorgan.gui.plot\_controls.PlotControlsPanel} drives it
+unmodified. Renaming a \code{PC\_*} widget breaks that contract; a test asserts
+the full set is present.
+
+\subsection{Structure of the code}
+
+\code{MainWindow} is assembled from per-tab mixins in \code{gui/tabs/}:
+
+\begin{description}
+  \item[\code{DataTabMixin}] Loading, dataset display, the embedded
+    data / fit / residuals view and the additional cut plots.
+  \item[\code{ModelTabMixin}] Model selection, the lifetime table, bounds,
+    fixed flags, IRF and time-zero controls.
+  \item[\code{FittingTabMixin}] Fit control: run, preview, reset, statistic
+    read-out, copy taus, auto-plots.
+  \item[\code{LDATabMixin}] The LDA controls and result display.
+\end{description}
+
+A mixin is a plain method container with no state of its own, so \code{self} is
+always the main window. \code{main\_window.py} keeps construction, wiring,
+menus and theming only; shared constants live in \code{gui/mw\_common.py}.
+
+Wiring is defensive: a connection is made only if the named widget exists, so
+the window still loads while the layout is being edited in Designer, and the
+missing widget is logged rather than raising at start-up.
+
+\subsection{Rendering}
+
+A contour re-plot cannot be updated artist by artist --- the level set itself
+changes --- so rapid control changes, such as a colour-scale slider drag that
+emits one signal per step, are coalesced into a single render through a
+short-interval timer. Limit changes that do not alter the levels re-apply the
+axis limits without re-plotting.
+
+\subsection{Start-up cost}
+
+\code{gui/app.py} imports neither \code{pyrate} nor \code{pymorgan} at module
+level, so the window (and, where enabled, the splash screen) can appear before
+scipy, matplotlib and the loader registries are paid for. The same discipline
+applies to the package itself: \code{pyrate/\_\_init\_\_.py} binds its exports
+through a PEP~562 \code{\_\_getattr\_\_}, so \code{import pyrate_ta} is nearly
+free and each module is imported on first use of a name it provides.

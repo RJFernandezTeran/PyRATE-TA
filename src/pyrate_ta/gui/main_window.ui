@@ -1,0 +1,2058 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1320</width>
+    <height>964</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>PyRATE - Spectrokinetic Fitting</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="centralLayout">
+    <property name="spacing">
+     <number>6</number>
+    </property>
+    <property name="leftMargin">
+     <number>6</number>
+    </property>
+    <property name="topMargin">
+     <number>6</number>
+    </property>
+    <property name="rightMargin">
+     <number>6</number>
+    </property>
+    <property name="bottomMargin">
+     <number>6</number>
+    </property>
+    <item>
+     <widget class="QScrollArea" name="leftScroll">
+      <property name="minimumSize">
+       <size>
+        <width>288</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>328</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="toolTip">
+       <string>Scrolls when the window is shorter than the controls need, so the window fits on a small screen</string>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Shape::NoFrame</enum>
+      </property>
+      <property name="horizontalScrollBarPolicy">
+       <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+      </property>
+      <property name="widgetResizable">
+       <bool>true</bool>
+      </property>
+      <widget class="QWidget" name="leftPanel">
+       <property name="geometry">
+        <rect>
+         <x>0</x>
+         <y>0</y>
+         <width>288</width>
+         <height>898</height>
+        </rect>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>270</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>310</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <layout class="QVBoxLayout" name="leftColumn">
+        <property name="spacing">
+         <number>3</number>
+        </property>
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <property name="rightMargin">
+         <number>0</number>
+        </property>
+        <property name="bottomMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="QGroupBox" name="DataGroup">
+          <property name="title">
+           <string>Data</string>
+          </property>
+          <layout class="QGridLayout" name="dataGrid">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <item row="0" column="0">
+            <widget class="QPushButton" name="LoadPDATButton">
+             <property name="toolTip">
+              <string>Load a 1-D transient dataset through PyMORGAN's loader registry</string>
+             </property>
+             <property name="text">
+              <string>Load Data</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QPushButton" name="ClearDataButton">
+             <property name="toolTip">
+              <string>Unload the current dataset and clear every plot</string>
+             </property>
+             <property name="text">
+              <string>Clear Data</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0" colspan="2">
+            <layout class="QHBoxLayout" name="lampRow">
+             <property name="spacing">
+              <number>4</number>
+             </property>
+             <item>
+              <widget class="LEDIndicator" name="DataLoadedLamp" native="true"/>
+             </item>
+             <item>
+              <widget class="QLabel" name="DataLoadedLampLabel">
+               <property name="text">
+                <string>Data</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="lampSpacer">
+               <property name="orientation">
+                <enum>Qt::Orientation::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>10</width>
+                 <height>10</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+             <item>
+              <widget class="LEDIndicator" name="NoiseLoadedLamp" native="true">
+               <property name="toolTip">
+                <string>Lit when the dataset carries per-point noise: a sibling .pdatn file, or single scans. Required for a weighted (reduced chi-squared) fit.</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QLabel" name="NoiseLoadedLampLabel">
+               <property name="toolTip">
+                <string>Lit when the dataset carries per-point noise (.pdatn or single scans)</string>
+               </property>
+               <property name="text">
+                <string>Noise</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <spacer name="lampSpacer2">
+               <property name="orientation">
+                <enum>Qt::Orientation::Horizontal</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>10</width>
+                 <height>10</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTabWidget" name="FittingTabWidget">
+          <property name="currentIndex">
+           <number>0</number>
+          </property>
+          <widget class="QWidget" name="tabDiscrete">
+           <attribute name="title">
+            <string>Discrete Fitting</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="tabDiscreteLayout">
+            <property name="spacing">
+             <number>4</number>
+            </property>
+            <property name="leftMargin">
+             <number>2</number>
+            </property>
+            <property name="topMargin">
+             <number>2</number>
+            </property>
+            <property name="rightMargin">
+             <number>2</number>
+            </property>
+            <property name="bottomMargin">
+             <number>2</number>
+            </property>
+            <item>
+             <widget class="QGroupBox" name="ModelSelectionGroup">
+              <property name="title">
+               <string>Model Selection</string>
+              </property>
+              <layout class="QGridLayout" name="modelSelectionLayout">
+               <property name="spacing">
+                <number>4</number>
+               </property>
+               <item row="0" column="0">
+                <widget class="QPushButton" name="ParallelButton">
+                 <property name="toolTip">
+                  <string>Independent parallel decays -&gt; decay-associated spectra (DAS)</string>
+                 </property>
+                 <property name="text">
+                  <string>Parallel</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <attribute name="buttonGroup">
+                  <string notr="true">ModelSelectionButtonGroup</string>
+                 </attribute>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QPushButton" name="SequentialButton">
+                 <property name="toolTip">
+                  <string>Sequential A-&gt;B-&gt;C scheme -&gt; evolution-associated spectra (EAS)</string>
+                 </property>
+                 <property name="text">
+                  <string>Sequential</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
+                 <attribute name="buttonGroup">
+                  <string notr="true">ModelSelectionButtonGroup</string>
+                 </attribute>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QPushButton" name="TargetButton">
+                 <property name="toolTip">
+                  <string>General K-matrix with branching -&gt; species-associated spectra (SAS)</string>
+                 </property>
+                 <property name="text">
+                  <string>Target</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <attribute name="buttonGroup">
+                  <string notr="true">ModelSelectionButtonGroup</string>
+                 </attribute>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QPushButton" name="ODEdefinedButton">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
+                 <property name="toolTip">
+                  <string>User-defined ODE system (not implemented yet)</string>
+                 </property>
+                 <property name="text">
+                  <string>ODE-defined</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <attribute name="buttonGroup">
+                  <string notr="true">ModelSelectionButtonGroup</string>
+                 </attribute>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QPushButton" name="DefinemodelButton">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
+                 <property name="toolTip">
+                  <string>Edit the rate matrix / connectivity of the target model</string>
+                 </property>
+                 <property name="text">
+                  <string>Define model...</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QPushButton" name="ShowSchemeButton">
+                 <property name="enabled">
+                  <bool>false</bool>
+                 </property>
+                 <property name="toolTip">
+                  <string>Draw the kinetic scheme of the current model (compartments, arrows and rate symbols)</string>
+                 </property>
+                 <property name="text">
+                  <string>Show kinetic graph</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="ComponentsGroup">
+              <property name="title">
+               <string>Components</string>
+              </property>
+              <layout class="QVBoxLayout" name="componentsLayout">
+               <property name="spacing">
+                <number>3</number>
+               </property>
+               <property name="topMargin">
+                <number>4</number>
+               </property>
+               <property name="bottomMargin">
+                <number>4</number>
+               </property>
+               <item>
+                <widget class="QTableWidget" name="RateFitTable">
+                 <property name="minimumSize">
+                  <size>
+                   <width>0</width>
+                   <height>104</height>
+                  </size>
+                 </property>
+                 <property name="toolTip">
+                  <string>Initial lifetimes, bounds and fixed/free flags for each component</string>
+                 </property>
+                 <column>
+                  <property name="text">
+                   <string>Tau</string>
+                  </property>
+                 </column>
+                 <column>
+                  <property name="text">
+                   <string>LB</string>
+                  </property>
+                 </column>
+                 <column>
+                  <property name="text">
+                   <string>UB</string>
+                  </property>
+                 </column>
+                 <column>
+                  <property name="text">
+                   <string>Fix?</string>
+                  </property>
+                 </column>
+                </widget>
+               </item>
+               <item>
+                <layout class="QHBoxLayout" name="componentRow">
+                 <item>
+                  <widget class="QPushButton" name="AddComponentButton">
+                   <property name="text">
+                    <string>Add</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QPushButton" name="RemoveComponentButton">
+                   <property name="text">
+                    <string>Remove</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="IRFandtimezeroPanel">
+              <property name="title">
+               <string>IRF and time zero</string>
+              </property>
+              <layout class="QVBoxLayout" name="irfLayout">
+               <property name="spacing">
+                <number>3</number>
+               </property>
+               <property name="topMargin">
+                <number>4</number>
+               </property>
+               <property name="bottomMargin">
+                <number>4</number>
+               </property>
+               <item>
+                <layout class="QHBoxLayout" name="irfCheckboxRow">
+                 <property name="spacing">
+                  <number>10</number>
+                 </property>
+                 <item>
+                  <widget class="QCheckBox" name="GaussianIRFCheckBox">
+                   <property name="toolTip">
+                    <string>Convolve exponentially modified Gaussian (analytic EMG) with FWHM</string>
+                   </property>
+                   <property name="text">
+                    <string>Gaussian IRF</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QCheckBox" name="CoherentArtifactCheckBox">
+                   <property name="toolTip">
+                    <string>Include coherent-artefact derivative columns at time zero</string>
+                   </property>
+                   <property name="text">
+                    <string>Coherent artefact</string>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item>
+                <widget class="QTableWidget" name="IRFtable">
+                 <property name="minimumSize">
+                  <size>
+                   <width>0</width>
+                   <height>88</height>
+                  </size>
+                 </property>
+                 <property name="maximumSize">
+                  <size>
+                   <width>16777215</width>
+                   <height>88</height>
+                  </size>
+                 </property>
+                 <property name="toolTip">
+                  <string>Time zero and IRF width: value, bounds and fixed/free flag. The width row is hidden when no IRF is modelled; time zero always applies.</string>
+                 </property>
+                 <row>
+                  <property name="text">
+                   <string>t0</string>
+                  </property>
+                 </row>
+                 <row>
+                  <property name="text">
+                   <string>Δ</string>
+                  </property>
+                 </row>
+                 <column>
+                  <property name="text">
+                   <string>Val.</string>
+                  </property>
+                 </column>
+                 <column>
+                  <property name="text">
+                   <string>LB</string>
+                  </property>
+                 </column>
+                 <column>
+                  <property name="text">
+                   <string>UB</string>
+                  </property>
+                 </column>
+                 <column>
+                  <property name="text">
+                   <string>Fix?</string>
+                  </property>
+                 </column>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="FitControlGroup">
+              <property name="title">
+               <string>Fit Control</string>
+              </property>
+              <layout class="QGridLayout" name="fitControlGrid">
+               <property name="spacing">
+                <number>4</number>
+               </property>
+               <item row="0" column="0">
+                <widget class="QLabel" name="PlotWhatLabel">
+                 <property name="text">
+                  <string>Show:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QPushButton" name="ShowDataButton">
+                 <property name="toolTip">
+                  <string>Plot raw data in main viewer</string>
+                 </property>
+                 <property name="text">
+                  <string>Data</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
+                 <attribute name="buttonGroup">
+                  <string notr="true">PlotWhatButtonGroup</string>
+                 </attribute>
+                </widget>
+               </item>
+               <item row="0" column="2">
+                <widget class="QPushButton" name="ShowFitButton">
+                 <property name="toolTip">
+                  <string>Overlay fit result on main viewer</string>
+                 </property>
+                 <property name="text">
+                  <string>Fit</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <attribute name="buttonGroup">
+                  <string notr="true">PlotWhatButtonGroup</string>
+                 </attribute>
+                </widget>
+               </item>
+               <item row="0" column="3">
+                <widget class="QPushButton" name="ShowResidualsButton">
+                 <property name="toolTip">
+                  <string>Plot residual matrix in main viewer</string>
+                 </property>
+                 <property name="text">
+                  <string>Residuals</string>
+                 </property>
+                 <property name="checkable">
+                  <bool>true</bool>
+                 </property>
+                 <attribute name="buttonGroup">
+                  <string notr="true">PlotWhatButtonGroup</string>
+                 </attribute>
+                </widget>
+               </item>
+               <item row="1" column="0" colspan="2">
+                <widget class="QPushButton" name="PreviewButton">
+                 <property name="toolTip">
+                  <string>Compute model guess without running solver</string>
+                 </property>
+                 <property name="text">
+                  <string>Preview</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="2" colspan="2">
+                <widget class="QPushButton" name="FITDATAButton">
+                 <property name="toolTip">
+                  <string>Run non-linear least squares fit</string>
+                 </property>
+                 <property name="text">
+                  <string>FIT DATA</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="Chi2Value_label">
+                 <property name="text">
+                  <string>SSR:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1" colspan="2">
+                <widget class="QLineEdit" name="Chi2Value">
+                 <property name="readOnly">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="3">
+                <widget class="QPushButton" name="ResetFitButton">
+                 <property name="toolTip">
+                  <string>Reset model settings and fit result</string>
+                 </property>
+                 <property name="text">
+                  <string>Reset</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="0" colspan="4">
+                <widget class="QPushButton" name="CopyTaus_button">
+                 <property name="toolTip">
+                  <string>Copy fitted lifetimes into initial guess</string>
+                 </property>
+                 <property name="text">
+                  <string>Copy taus to clipboard</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="0" colspan="2">
+                <widget class="QPushButton" name="PlotSpeciesSpectraButton">
+                 <property name="toolTip">
+                  <string>Plot species-associated spectra DAS/EAS/SAS</string>
+                 </property>
+                 <property name="text">
+                  <string>Species spectra</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="2" colspan="2">
+                <widget class="QPushButton" name="PlotConcProfileButton">
+                 <property name="toolTip">
+                  <string>Plot concentration profiles C(t)</string>
+                 </property>
+                 <property name="text">
+                  <string>Concentrations</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="FitOptionsGroup">
+              <property name="title">
+               <string>Fit Options</string>
+              </property>
+              <layout class="QVBoxLayout" name="fitOptionsLayout">
+               <property name="spacing">
+                <number>3</number>
+               </property>
+               <property name="topMargin">
+                <number>4</number>
+               </property>
+               <property name="bottomMargin">
+                <number>4</number>
+               </property>
+               <item>
+                <widget class="QComboBox" name="FitMethod">
+                 <property name="toolTip">
+                  <string>Non-linear least-squares algorithm</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="RestrictFitCheckBox">
+                 <property name="toolTip">
+                  <string>Fit only the delay/probe window currently displayed</string>
+                 </property>
+                 <property name="text">
+                  <string>Restrict fit to display limits</string>
+                 </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="UseNoiseWeightsCheckBox">
+                 <property name="toolTip">
+                  <string>Weight the residuals by the per-point noise (.pdatn or single scans), so the fit statistic is a true reduced chi-squared. Without it the statistic is the sum of squared residuals.</string>
+                 </property>
+                 <property name="text">
+                  <string>Weight by noise (reduced chi2)</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="ExtraPlotsAfterFit_CheckBox">
+                 <property name="text">
+                  <string>Plot Data+Fit+Residuals after fit</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QCheckBox" name="GSBRecoveryCheckBox">
+                 <property name="toolTip">
+                  <string>Overlay ground-state bleach recovery spectrum (-1 * GS) on species spectra</string>
+                 </property>
+                 <property name="text">
+                  <string>Show GSB recovery spectrum (-1 × GS)</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+          <widget class="QWidget" name="tabLDA">
+           <attribute name="title">
+            <string>Lifetime Density Analysis (LDA)</string>
+           </attribute>
+           <layout class="QVBoxLayout" name="tabLDALayout">
+            <property name="spacing">
+             <number>6</number>
+            </property>
+            <property name="leftMargin">
+             <number>4</number>
+            </property>
+            <property name="topMargin">
+             <number>4</number>
+            </property>
+            <property name="rightMargin">
+             <number>4</number>
+            </property>
+            <property name="bottomMargin">
+             <number>4</number>
+            </property>
+            <item>
+             <widget class="QGroupBox" name="LDAGroup">
+              <property name="title">
+               <string>LDA Settings &amp; Control</string>
+              </property>
+              <layout class="QFormLayout" name="ldaFormLayout">
+               <property name="horizontalSpacing">
+                <number>6</number>
+               </property>
+               <property name="verticalSpacing">
+                <number>6</number>
+               </property>
+               <item row="0" column="0">
+                <widget class="QLabel" name="LDANtLabel">
+                 <property name="text">
+                  <string>Grid points:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QSpinBox" name="LDANtSpinBox">
+                 <property name="minimum">
+                  <number>10</number>
+                 </property>
+                 <property name="maximum">
+                  <number>500</number>
+                 </property>
+                 <property name="value">
+                  <number>100</number>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QLabel" name="LDAPenaltyLabel">
+                 <property name="text">
+                  <string>Penalty method:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="1">
+                <widget class="QComboBox" name="LDAPenaltyCombo">
+                 <item>
+                  <property name="text">
+                   <string>2nd derivative (D2 smoothness)</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>1st derivative (D1 gradient)</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>Ridge / Tikhonov (L=I)</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="LDAAlphaLabel">
+                 <property name="text">
+                  <string>Alpha method:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
+                <widget class="QComboBox" name="LDAAlphaCombo">
+                 <item>
+                  <property name="text">
+                   <string>L-Curve Corner</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>GCV Minimum</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>Morozov (noise floor)</string>
+                  </property>
+                 </item>
+                 <item>
+                  <property name="text">
+                   <string>Manual (fixed alpha)</string>
+                  </property>
+                 </item>
+                </widget>
+               </item>
+               <item row="3" column="0">
+                <widget class="QLabel" name="LDAAlphaValueLabel">
+                 <property name="text">
+                  <string>Alpha value (manual):</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="1">
+                <widget class="QDoubleSpinBox" name="LDAAlphaValueDoubleSpinBox">
+                 <property name="toolTip">
+                  <string>Manual regularisation parameter alpha value (used when Alpha method is Manual)</string>
+                 </property>
+                 <property name="decimals">
+                  <number>6</number>
+                 </property>
+                 <property name="minimum">
+                  <double>0.000001000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>100000.000000000000000</double>
+                 </property>
+                 <property name="singleStep">
+                  <double>0.010000000000000</double>
+                 </property>
+                 <property name="value">
+                  <double>0.010000000000000</double>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="0">
+                <widget class="QLabel" name="LDATauMinLabel">
+                 <property name="text">
+                  <string>Tau min (0=auto):</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="1">
+                <widget class="QDoubleSpinBox" name="LDATauMinDoubleSpinBox">
+                 <property name="toolTip">
+                  <string>Minimum lifetime in grid (in dataset time units, 0 for auto: min(t)/2)</string>
+                 </property>
+                 <property name="decimals">
+                  <number>4</number>
+                 </property>
+                 <property name="minimum">
+                  <double>0.000000000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>1000000.000000000000000</double>
+                 </property>
+                 <property name="value">
+                  <double>0.000000000000000</double>
+                 </property>
+                </widget>
+               </item>
+               <item row="5" column="0">
+                <widget class="QLabel" name="LDATauMaxLabel">
+                 <property name="text">
+                  <string>Tau max (0=auto):</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="5" column="1">
+                <widget class="QDoubleSpinBox" name="LDATauMaxDoubleSpinBox">
+                 <property name="toolTip">
+                  <string>Maximum lifetime in grid (in dataset time units, 0 for auto: 5*max(t))</string>
+                 </property>
+                 <property name="decimals">
+                  <number>4</number>
+                 </property>
+                 <property name="minimum">
+                  <double>0.000000000000000</double>
+                 </property>
+                 <property name="maximum">
+                  <double>1000000.000000000000000</double>
+                 </property>
+                 <property name="value">
+                  <double>0.000000000000000</double>
+                 </property>
+                </widget>
+               </item>
+               <item row="6" column="0" colspan="2">                 <widget class="QCheckBox" name="LDACoherentArtifactCheckBox">
+                  <property name="toolTip">
+                   <string>Include IRF Gaussian and its first two derivatives at t0 to absorb cross-phase modulation / solvent artefact</string>
+                  </property>
+                  <property name="text">
+                   <string>Include coherent artefact at t0</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="7" column="0">
+                 <widget class="QLabel" name="LDASVDFilterLabel">
+                  <property name="text">
+                   <string>SVD noise filter (0=off):</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="7" column="1">
+                 <widget class="QSpinBox" name="LDASVDFilterSpinBox">
+                  <property name="toolTip">
+                   <string>Pre-filter raw dataset using top K SVD singular components to suppress probe noise (0 = Off)</string>
+                  </property>
+                  <property name="minimum">
+                   <number>0</number>
+                  </property>
+                  <property name="maximum">
+                   <number>30</number>
+                  </property>
+                  <property name="value">
+                   <number>0</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="8" column="0" colspan="2">
+                 <widget class="QCheckBox" name="LDANonNegativeCheckBox">
+                  <property name="toolTip">
+                   <string>Enforce non-negative amplitudes S >= 0 via regularised Non-Negative Least Squares (NNLS)</string>
+                  </property>
+                  <property name="text">
+                   <string>Enforce non-negative amplitudes S >= 0</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="9" column="0">
+                 <widget class="QLabel" name="LDABootstrapLabel">
+                  <property name="text">
+                   <string>Bootstrap iterations (0=off):</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="9" column="1">
+                 <widget class="QSpinBox" name="LDABootstrapSpinBox">
+                  <property name="toolTip">
+                   <string>Number of Monte Carlo bootstrap iterations for confidence intervals on integrated dynamics A(tau) (0 = Off)</string>
+                  </property>
+                  <property name="minimum">
+                   <number>0</number>
+                  </property>
+                  <property name="maximum">
+                   <number>200</number>
+                  </property>
+                  <property name="value">
+                   <number>0</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="10" column="0" colspan="2">
+                 <widget class="QCheckBox" name="LDAPeaksCheckBox">
+                  <property name="toolTip">
+                   <string>Automatically locate major lifetime peak centroids from A(tau)</string>
+                  </property>
+                  <property name="text">
+                   <string>Auto-detect lifetime peak centroids</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="11" column="0" colspan="2">
+                 <widget class="QPushButton" name="LDACitationsButton">
+                  <property name="toolTip">
+                   <string>Show literature citations for the selected LDA algorithms</string>
+                  </property>
+                  <property name="text">
+                   <string>Literature Citations...</string>
+                  </property>
+                 </widget>
+                </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="RunLDAButton">
+              <property name="toolTip">
+               <string>Solve Lifetime Density Analysis across the grid</string>
+              </property>
+              <property name="text">
+               <string>Run LDA Analysis</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QGroupBox" name="LDAPlotsGroup">
+              <property name="title">
+               <string>LDA Visualisation &amp; Plots</string>
+              </property>
+              <layout class="QVBoxLayout" name="ldaPlotsLayout">
+               <property name="spacing">
+                <number>4</number>
+               </property>
+               <item>
+                <widget class="QPushButton" name="PlotLDAMapButton">
+                 <property name="toolTip">
+                  <string>Open 2D contour map of lifetime distribution</string>
+                 </property>
+                 <property name="text">
+                  <string>2D Lifetime Map S(tau, probe)</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="PlotLCurveButton">
+                 <property name="toolTip">
+                  <string>Open L-Curve plot with corner selection</string>
+                 </property>
+                 <property name="text">
+                  <string>L-Curve Corner Plot</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="PlotLDASliceButton">
+                 <property name="toolTip">
+                  <string>Plot 1D slice of S(tau) at selected probe wavelength</string>
+                 </property>
+                 <property name="text">
+                  <string>Lifetime Slice S(tau)</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="SaveLDAMapPDATButton">
+                 <property name="toolTip">
+                  <string>Save fitted 2D lifetime density map S(tau, lambda) as a PyMORGAN PDAT dataset file</string>
+                 </property>
+                 <property name="text">
+                  <string>Save LDA Map (PDAT)...</string>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </widget>
+            </item>
+            <item>
+             <spacer name="ldaSpacer">
+              <property name="orientation">
+               <enum>Qt::Orientation::Vertical</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>10</width>
+                <height>40</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </widget>
+         </widget>
+        </item>
+        <item>
+         <spacer name="leftSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>10</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <layout class="QVBoxLayout" name="rightSide">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <item>
+       <layout class="QGridLayout" name="plotsGrid">
+        <property name="spacing">
+         <number>4</number>
+        </property>
+        <item row="0" column="0" rowspan="3" colspan="3">
+         <widget class="WidgetPlot" name="PlotArea" native="true">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>1</horstretch>
+            <verstretch>4</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>560</width>
+            <height>340</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="2">
+         <widget class="QGroupBox" name="PP_PlotsandcutsPanel">
+          <property name="maximumSize">
+           <size>
+            <width>380</width>
+            <height>180</height>
+           </size>
+          </property>
+          <property name="title">
+           <string>Additional Plots and cuts</string>
+          </property>
+          <layout class="QGridLayout" name="plotsAndCutsGrid">
+           <property name="spacing">
+            <number>4</number>
+           </property>
+           <item row="3" column="0">
+            <widget class="QCheckBox" name="PP_SavetracesSwitch">
+             <property name="text">
+              <string>Save Traces</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QPushButton" name="ExplorerModeButton">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>Explorer Mode</string>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QCheckBox" name="PP_IncludeResiduals">
+             <property name="text">
+              <string>Incl. Residuals</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QCheckBox" name="PP_InteractivemodeSwitch">
+             <property name="text">
+              <string>Interactive</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QPushButton" name="PP_PlotKineticsButton">
+             <property name="text">
+              <string>Plot Kinetics</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QCheckBox" name="PP_NormaliseCheckBox">
+             <property name="text">
+              <string>Normalise</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QPushButton" name="PP_SurfaceplotButton">
+             <property name="text">
+              <string>3D Surface plot</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QPushButton" name="PP_PlotTrSpectraButton">
+             <property name="text">
+              <string>Plot Tr. Spectra</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="0">
+            <widget class="QPushButton" name="AddTracestoLivePlotsButton">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>Add Traces to Live Plots</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="QPushButton" name="PP_ContourplotButton">
+             <property name="text">
+              <string>Contour Plots</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="PC_box">
+        <property name="title">
+         <string>Plot Controls</string>
+        </property>
+        <layout class="QGridLayout" name="plotControlsGrid">
+         <property name="leftMargin">
+          <number>8</number>
+         </property>
+         <property name="topMargin">
+          <number>6</number>
+         </property>
+         <property name="rightMargin">
+          <number>8</number>
+         </property>
+         <property name="bottomMargin">
+          <number>6</number>
+         </property>
+         <property name="horizontalSpacing">
+          <number>6</number>
+         </property>
+         <property name="verticalSpacing">
+          <number>5</number>
+         </property>
+         <item row="3" column="3">
+          <widget class="QLabel" name="PC_lblTimeLabels">
+           <property name="text">
+            <string>Time labels</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="9">
+          <widget class="QLabel" name="PC_lblTimeAxis">
+           <property name="text">
+            <string>Time axis</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="10">
+          <widget class="QComboBox" name="PC_timeScale">
+           <property name="minimumSize">
+            <size>
+             <width>96</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>96</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <item>
+            <property name="text">
+             <string>symlog</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>log</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>lin</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="1" column="4">
+          <widget class="QLabel" name="PC_lblCmap">
+           <property name="text">
+            <string>Colour scheme</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="5">
+          <widget class="QPushButton" name="PC_restore">
+           <property name="text">
+            <string>Restore Limits</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="3">
+          <widget class="QDoubleSpinBox" name="PC_yMax">
+           <property name="minimumSize">
+            <size>
+             <width>88</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>88</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-1000000000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000000000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="11">
+          <widget class="QLabel" name="PC_lblNContours">
+           <property name="text">
+            <string>Nº contours</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="2">
+          <widget class="QLabel" name="PC_lblMinTime">
+           <property name="text">
+            <string>Min time</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="13">
+          <widget class="QCheckBox" name="PC_showLines">
+           <property name="text">
+            <string>Show lines, every</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="5">
+          <widget class="QComboBox" name="PC_cmap">
+           <property name="minimumSize">
+            <size>
+             <width>120</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>120</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <item>
+            <property name="text">
+             <string>DkRd/Wh/DkBu</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Rd/Wh/Bu v2</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="0" column="15">
+          <widget class="QLabel" name="PC_lblLevels">
+           <property name="text">
+            <string>levels</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="PC_lblDAbs">
+           <property name="text">
+            <string>ΔAbs range</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="11" colspan="3">
+          <widget class="QSlider" name="PC_zSlider">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>100</number>
+           </property>
+           <property name="value">
+            <number>100</number>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QDoubleSpinBox" name="PC_xMax">
+           <property name="minimumSize">
+            <size>
+             <width>88</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>88</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-1000000000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000000000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="6">
+          <widget class="QCheckBox" name="PC_restrictZ">
+           <property name="toolTip">
+            <string>Auto Z-max from data inside the current X/Y limits, not the whole dataset.</string>
+           </property>
+           <property name="text">
+            <string>Z: current range</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="9">
+          <widget class="QLabel" name="PC_lblXUnit">
+           <property name="text">
+            <string>X axis unit</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="10">
+          <widget class="SciDoubleSpinBox" name="PC_zPct">
+           <property name="minimumSize">
+            <size>
+             <width>64</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>64</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="minimum">
+            <double>0.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>100.000000000000000</double>
+           </property>
+           <property name="value">
+            <double>100.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="0">
+          <widget class="QLabel" name="PC_xMinLabel">
+           <property name="text">
+            <string>Min WL</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="12">
+          <widget class="QSpinBox" name="PC_nContours">
+           <property name="minimumSize">
+            <size>
+             <width>56</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>56</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="minimum">
+            <number>2</number>
+           </property>
+           <property name="maximum">
+            <number>400</number>
+           </property>
+           <property name="value">
+            <number>30</number>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="6">
+          <widget class="QCheckBox" name="PC_autoYcuts">
+           <property name="toolTip">
+            <string>Autoscale the signal (Y) axis of kinetic/spectral cuts instead of inheriting the contour Z limits.</string>
+           </property>
+           <property name="text">
+            <string>Auto-Y in cuts</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="PC_xMaxLabel">
+           <property name="text">
+            <string>Max WL</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="7" rowspan="7">
+          <spacer name="PC_hspacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>10</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item row="2" column="2">
+          <widget class="QDoubleSpinBox" name="PC_zMax">
+           <property name="minimumSize">
+            <size>
+             <width>88</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>88</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-1000000000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000000000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <widget class="QDoubleSpinBox" name="PC_zMin">
+           <property name="minimumSize">
+            <size>
+             <width>88</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>88</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-1000000000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000000000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="6">
+          <widget class="QCheckBox" name="PC_arcsinh">
+           <property name="text">
+            <string>arcsinh</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="14">
+          <widget class="QLabel" name="PC_lblSmooth">
+           <property name="text">
+            <string>Smooth</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="2">
+          <widget class="QLabel" name="PC_lblMaxTime">
+           <property name="text">
+            <string>Max time</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="4">
+          <widget class="QLabel" name="PC_lblWhite">
+           <property name="text">
+            <string>White levels</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="11" colspan="3">
+          <widget class="QCheckBox" name="PC_secondaryAxis">
+           <property name="toolTip">
+            <string>Add a secondary X axis (top) in the complementary unit (cm-1&lt;-&gt;nm; nm for eV/THz).</string>
+           </property>
+           <property name="text">
+            <string>2nd axis (top)</string>
+           </property>
+           <property name="checked">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="4">
+          <widget class="QComboBox" name="PC_timeLabel">
+           <property name="minimumSize">
+            <size>
+             <width>96</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>96</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <item>
+            <property name="text">
+             <string>power</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>decimal</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>mixed</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="0" column="14">
+          <widget class="QSpinBox" name="PC_nSkip">
+           <property name="minimumSize">
+            <size>
+             <width>56</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>56</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>50</number>
+           </property>
+           <property name="value">
+            <number>2</number>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QDoubleSpinBox" name="PC_xMin">
+           <property name="minimumSize">
+            <size>
+             <width>88</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>88</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-1000000000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000000000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="3">
+          <widget class="QDoubleSpinBox" name="PC_yMin">
+           <property name="minimumSize">
+            <size>
+             <width>88</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>88</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="decimals">
+            <number>3</number>
+           </property>
+           <property name="minimum">
+            <double>-1000000000.000000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>1000000000.000000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="0" colspan="3">
+          <widget class="QLabel" name="PC_zReadout">
+           <property name="styleSheet">
+            <string notr="true">color: #555;</string>
+           </property>
+           <property name="text">
+            <string>Max ΔAbs (mOD): —</string>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="10">
+          <widget class="QComboBox" name="PC_xUnit">
+           <property name="minimumSize">
+            <size>
+             <width>96</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>96</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Convert the spectral (probe) X axis between nm / cm-1 / eV / THz. &quot;native&quot; keeps the dataset's stored unit.</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>native</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>nm</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>cm-1</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>eV</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>THz</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="1" column="9">
+          <widget class="QLabel" name="PC_lblScalePct">
+           <property name="text">
+            <string>Scale %</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="15">
+          <widget class="QSpinBox" name="PC_smooth">
+           <property name="minimumSize">
+            <size>
+             <width>56</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>56</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Smoothing for transient-spectra / kinetic cuts (opened in a new figure):
+       0 = no smoothing;
+       &gt;0 = smoothed data only;
+       &lt;0 = smoothed data plus the original semitransparent.
+       The magnitude sets the smoothing window width.</string>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="minimum">
+            <number>-99</number>
+           </property>
+           <property name="maximum">
+            <number>99</number>
+           </property>
+           <property name="value">
+            <number>0</number>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="5">
+          <widget class="QCheckBox" name="PC_filled">
+           <property name="text">
+            <string>Filled contours</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="3" colspan="2">
+          <widget class="QCheckBox" name="PC_symmetric">
+           <property name="text">
+            <string>Symmetric colour scale</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="5">
+          <widget class="QSpinBox" name="PC_whiteLevels">
+           <property name="minimumSize">
+            <size>
+             <width>56</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>56</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="keyboardTracking">
+            <bool>false</bool>
+           </property>
+           <property name="minimum">
+            <number>0</number>
+           </property>
+           <property name="maximum">
+            <number>20</number>
+           </property>
+           <property name="value">
+            <number>2</number>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>1572</width>
+     <height>33</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="actionOpen"/>
+    <addaction name="actionClear"/>
+    <addaction name="separator"/>
+    <addaction name="actionLoadAbsSpectrum"/>
+    <addaction name="separator"/>
+    <addaction name="actionSaveFit"/>
+    <addaction name="actionLoadFit"/>
+    <addaction name="separator"/>
+    <addaction name="actionQuit"/>
+   </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>&amp;View</string>
+    </property>
+    <addaction name="actionRestoreSize"/>
+    <addaction name="separator"/>
+    <addaction name="actionSettings"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>&amp;Help</string>
+    </property>
+    <addaction name="actionAbout"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuView"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionOpen">
+   <property name="text">
+    <string>&amp;Open dataset...</string>
+   </property>
+  </action>
+  <action name="actionClear">
+   <property name="text">
+    <string>&amp;Clear data</string>
+   </property>
+  </action>
+  <action name="actionSaveFit">
+   <property name="text">
+    <string>&amp;Save fit session...</string>
+   </property>
+   <property name="toolTip">
+    <string>Write the fit and its reproducibility payload to a .prfit file</string>
+   </property>
+  </action>
+  <action name="actionLoadFit">
+   <property name="text">
+    <string>&amp;Open fit session...</string>
+   </property>
+  </action>
+  <action name="actionLoadAbsSpectrum">
+   <property name="text">
+    <string>&amp;Load absorption spectrum...</string>
+   </property>
+   <property name="toolTip">
+    <string>Load a text-based steady-state absorption spectrum for GSB recovery overlay</string>
+   </property>
+  </action>
+  <action name="actionQuit">
+   <property name="text">
+    <string>&amp;Quit</string>
+   </property>
+  </action>
+  <action name="actionRestoreSize">
+   <property name="text">
+    <string>&amp;Restore default window size</string>
+   </property>
+  </action>
+  <action name="actionSettings">
+   <property name="text">
+    <string>&amp;Settings...</string>
+   </property>
+   <property name="toolTip">
+    <string>Analysis settings (PyRATE) and aesthetics (PyMORGAN), in one dialog</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>&amp;About PyRATE</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>WidgetPlot</class>
+   <extends>QWidget</extends>
+   <header>pymorgan.gui.widgetplot</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>SciDoubleSpinBox</class>
+   <extends>QDoubleSpinBox</extends>
+   <header>pymorgan.gui.widgets</header>
+  </customwidget>
+  <customwidget>
+   <class>LEDIndicator</class>
+   <extends>QWidget</extends>
+   <header>pymorgan.gui.widgets</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+ <buttongroups>
+  <buttongroup name="PlotWhatButtonGroup"/>
+  <buttongroup name="ModelSelectionButtonGroup"/>
+ </buttongroups>
+</ui>

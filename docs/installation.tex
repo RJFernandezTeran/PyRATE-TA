@@ -1,0 +1,121 @@
+\section{Installation}\label{sec:installation}
+
+PyRATE-TA requires \textbf{Python~3.12 or later}. It can be installed directly from \href{https://pypi.org/project/pyrate-ta/}{PyPI} or installed from source using \href{https://docs.astral.sh/uv/}{\textbf{uv}}.
+
+\subsection{Quick install via PyPI (Recommended)}\label{sec:install-pypi}
+
+To install the latest official release into your active Python environment:
+
+\begin{lstlisting}[language=bash, style=py]
+pip install pyrate-ta
+# or with uv:
+uv pip install pyrate-ta
+
+# Register bundled fonts into matplotlib:
+pymorgan-install-fonts
+\end{lstlisting}
+
+\noindent You can also launch the graphical interface directly without prior installation using \code{uvx}:
+
+\begin{lstlisting}[language=bash, style=py]
+uvx --from pyrate-ta pyrate-ta-gui
+\end{lstlisting}
+
+\subsection{Installation from Source (Development)}
+
+From the repository root:
+
+\begin{lstlisting}[language=bash, style=py]
+uv venv                          # create .venv (Python >= 3.11)
+uv pip install -e ".[gui,dev]"   # editable install + dependencies
+uv run pymorgan-install-fonts    # PyMORGAN's fonts, in *this* environment
+\end{lstlisting}
+
+The font step is not optional in practice. PyRATE-TA uses PyMORGAN's font stack and
+ships no second installer, but Matplotlib registers fonts per environment: skip
+it and every figure falls back to DejaVu Sans, which is why a PyRATE-TA plot can
+look unlike a PyMORGAN one while both claim the same style. The GUI checks at
+start-up and logs the command if the preferred fonts are missing.
+
+uv automatically uses the project's \code{.venv}: prefix one-off commands with
+\code{uv run} to avoid activating it manually.
+
+\subsection{Co-development with PyMORGAN}
+
+PyRATE-TA depends on PyMORGAN. While the two are developed side by side under
+\code{Scripts/}, PyMORGAN is picked up from the sibling checkout as an editable
+path dependency, so an upstream edit is visible immediately without a
+reinstall:
+
+\begin{lstlisting}[style=py]
+# pyproject.toml
+[tool.uv.sources]
+pymorgan = { path = "../PyMORGAN", editable = true }
+\end{lstlisting}
+
+Replace that block with a plain version pin once PyMORGAN is published to an
+index. The same editable dependency puts \code{pymorgan-install-fonts} on
+PyRATE-TA's path, which is how the fonts are registered for this environment.
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    Package & Minimum version & Purpose \\
+    \midrule
+    \code{pymorgan}   & 0.6    & Loading, datasets, plotting, aesthetics \\
+    \code{numpy}      & 2.1.0  & Array operations \\
+    \code{scipy}      & 1.14.1 & Optimisation and matrix exponentials \\
+    \code{tomlkit}    & 0.13   & Settings file read/write \\
+    \code{PyQt6}      & 6.7.1  & Graphical interface framework \\
+    \code{PyQt6\_sip} & 13.8.0 & Qt bindings interface \\
+    \bottomrule
+  \end{tabular}
+  \caption{Core dependencies installed by \code{uv pip install -e .}}
+  \label{tab:dependencies}
+\end{table}
+
+\subsection{Console scripts}
+
+The editable install puts the following entry points on the path:
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{ll}
+    \toprule
+    Command & Purpose \\
+    \midrule
+    \code{pyrate-ta-gui}      & Launch the fitting interface \\
+    \code{pyrate-ta-edit-gui} & Open \code{main\_window.ui} in Qt Designer \\
+    \code{pyrate-ta-settings} & Standalone editor for the analysis settings \\
+    \bottomrule
+  \end{tabular}
+  \caption{Console scripts, mirroring PyMORGAN's. Presentation settings are
+    edited with \code{pymorgan-settings}, not here.}
+  \label{tab:scripts}
+\end{table}
+
+\subsection{Verifying the installation}
+
+\begin{lstlisting}[language=bash, style=py]
+uv run python -c "import pyrate_ta; print(pyrate_ta.__version__)"
+uv run pytest
+uv run python scripts/run_checks.py
+\end{lstlisting}
+
+\code{run\_checks.py} exercises the settings round-trip, the lazy public API,
+the PyMORGAN boundary and the integrity of the Qt Designer layout; the Qt
+checks are skipped, not failed, on a headless machine.
+\code{python scripts/run\_changed\_tests.py} runs only the suites affected by
+the current diff, and falls back to the full suite whenever a change cannot be
+mapped --- an unmapped change is never reported as tested.
+
+\subsection{Versioning}
+
+Every edit to the codebase must bump the version in
+\code{src/pyrate_ta/\_\_about\_\_.py}, using \code{python scripts/bump\_version.py}
+rather than editing it by hand. The scheme is \code{0.x.yymmdd.devN} (PEP~440):
+\code{yymmdd} is the build date and \code{N} the iteration within that day,
+restarting at 1 on a new date. A bare letter suffix (\code{0.1.260728d}) is not
+valid PEP~440 and breaks the build. \code{--check} exits non-zero when the
+recorded version was not produced today, which suits a pre-commit hook.

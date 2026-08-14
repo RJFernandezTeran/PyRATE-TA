@@ -1,0 +1,88 @@
+\section{Extending PyRATE-TA}\label{sec:extending}
+
+\subsection{Where new code goes}
+
+\begin{description}
+  \item[\code{models/}] Kinetic model definitions. A model owns its parameter
+    vector layout, its bounds, and the mapping from parameters to \Cmat{}.
+    Models are pure NumPy and must be importable without Qt.
+  \item[\code{fit/}] The solvers, one module per engine, plus the shared driver
+    that handles parameter packing, fixed/free masks and convergence reporting.
+    \code{lda.py} is the regularised LDA solver;
+    \code{groundstate.py} converts difference spectra to absolute ones;
+    \code{constrained.py} provides the sign-mask amplitude solver.
+  \item[\code{results/}] Result dataclasses and their serialisation, carrying
+    the reproducibility payload of section~\ref{sec:repro}.
+    \code{lda\_result.py} is the companion to \code{fit/lda.py}.
+  \item[\code{plot/}] Only what PyMORGAN cannot express: residual matrices,
+    concentration profiles $\mathbf{c}(t)$, \Kmat{} / compartment diagrams,
+    lifetime-density maps, fit-monitor bars, kinetic traces with residuals, and
+    spectra with residuals. Everything else is delegated upstream.
+  \item[\code{io/}] Import and export of fit sessions --- not raw spectroscopy
+    formats, which are PyMORGAN's.
+  \item[\code{gui/}] The PyQt6 application (chapter~\ref{sec:gui}).
+\end{description}
+
+\subsection{Adding a model}
+
+A model supplies a concentration matrix and the metadata the fit driver and the
+result object need: the parameter names, their bounds, and the \code{modelType}
+string that will reach \code{plot\_species\_spectra}. Build \Kmat{} explicitly
+and reuse the shared propagator (section~\ref{sec:kmat}) rather than deriving a
+closed-form solution per scheme --- one propagator is easier to test, and the
+degeneracy guard then applies automatically.
+
+Every new model needs a synthetic-recovery test: generate data from known
+parameters, fit it, assert the parameters come back within tolerance.
+
+\subsection{Adding an export to the public API}
+
+The public API is lazy (PEP~562). A new export needs an entry in
+\code{\_EXPORTS} (name $\rightarrow$ module) \emph{and} in \code{\_\_all\_\_},
+and should be added to the \code{TYPE\_CHECKING} block as well so that IDEs and
+type checkers still resolve it. Heavy third-party imports used by a single
+function (\code{scipy.optimise}, \code{scipy.linalg}, \code{h5py}) belong
+\emph{inside} that function.
+
+\subsection{Adding a GUI panel}
+
+Declare the widgets in \code{main\_window.ui} with Qt Designer
+(\code{uv run pyrate-ta-edit-gui}), then bind them from a mixin in
+\code{gui/tabs/}. Do not build widgets in Python: the layout must stay editable
+in Designer. Long operations are wrapped with \code{busy\_guard} so a second
+fit cannot start inside the first, and progress is reported through a callback
+the GUI adapts, keeping the engine headless.
+
+\subsection{Adding a plot}
+
+New analysis-only figures go in \code{plot/} as a new module, exported through
+\code{plot/\_\_init\_\_.py}. Every plotter reads aesthetics from
+\code{pymorgan.get\_settings()} so the figures match PyMORGAN's. The module
+must not import Qt; the GUI imports the plotter, not the other way around.
+
+\subsection{Conventions}
+
+\begin{description}
+  \item[Logging, not \code{print}.] Library code uses
+    \code{logger = get\_logger(\_\_name\_\_)}. \code{logger.info} is for
+    messages the user should see --- fit summaries, recovered lifetimes,
+    convergence status, method citations; \code{logger.debug(\dots,
+    exc\_info=True)} goes inside an \code{except} block whose failure is
+    recoverable, so that nothing fails silently. \code{print} is reserved for
+    console entry points and explicit \code{*\_console} helpers. To debug a
+    swallowed failure:
+    \code{logging.getLogger("pyrate").setLevel(logging.DEBUG)}.
+  \item[Method citations.] A routine implementing a published method --- a
+    global-analysis formalism, a target-analysis convention, a regularisation
+    scheme --- logs its reference through \code{logger.info} when it finishes.
+    An inherited habit from PyMORGAN; keep it.
+  \item[No placeholders.] Write fully functional code or raise
+    \code{NotImplementedError}. Deprecated code moves to \code{old\_code/}
+    (gitignored, and excluded from lint and packaging) rather than being
+    deleted.
+  \item[Matplotlib.] Use standard mathtext; never enable
+    \code{text.usetex=True}.
+  \item[Style.] Target Python 3.11, 100-character lines, double quotes:
+    \code{uvx ruff@latest format src tests} and
+    \code{uvx ruff@latest check src tests scripts examples}.
+\end{description}

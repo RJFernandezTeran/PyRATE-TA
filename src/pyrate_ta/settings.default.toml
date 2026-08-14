@@ -1,0 +1,171 @@
+# =============================================================================
+# PyRATE-TA Settings Configuration
+# =============================================================================
+#
+# Analysis and interface settings only.
+# Plot aesthetics live in PyMORGAN's settings.toml.
+#
+
+# -----------------------------------------------------------------------------
+# 1. Fit Defaults
+# -----------------------------------------------------------------------------
+[fit]
+# Number of kinetic components proposed for a new fit.
+n_components = 2
+
+# Default kinetic model family for a new fit: "Parallel" (DAS) / "Sequential" (EAS) / "Target" (SAS).
+model_type = "Sequential"
+
+# Deprecated: a non-decaying component is now created by entering a lifetime of inf.
+offset = false
+
+# -----------------------------------------------------------------------------
+# 2. Solver Settings
+# -----------------------------------------------------------------------------
+[solver]
+# Termination tolerance on the cost function.
+ftol = 1e-08
+
+# Termination tolerance on the parameter vector.
+xtol = 1e-08
+
+# Hard cap on optimiser iterations; exceeding it is a non-convergence.
+max_iterations = 2000
+
+# Solve the linear amplitudes by least squares at each step (variable projection).
+variable_projection = true
+
+# Weight residuals by the per-point noise when available (.pdatn or single scans).
+use_noise_weights = false
+
+# Noise values below this fraction of the median noise are clipped up to it.
+noise_floor_fraction = 0.001
+
+# Report 1-sigma uncertainties from linearised covariance estimate.
+report_uncertainties = true
+
+# Warn when two fitted lifetimes come within this factor of each other.
+degeneracy_warn_ratio = 1.2
+
+# -----------------------------------------------------------------------------
+# 3. Instrument Response (IRF)
+# -----------------------------------------------------------------------------
+[irf]
+# How instrument response is handled: "None", "Gaussian", or "Clip".
+irf_mode = "Gaussian"
+
+# Fixed IRF FWHM in dataset time unit; empty string fits it as a parameter.
+irf_fwhm = ""
+
+# Delays below this are dropped when irf_mode is "Clip" (dataset time unit).
+t_min = ""
+
+# -----------------------------------------------------------------------------
+# 4. Lifetime Density Analysis (LDA)
+# -----------------------------------------------------------------------------
+[lda]
+# Points on the log-spaced lifetime grid.
+lda_n_lifetimes = 100
+
+# Grid limits in dataset time unit; empty spans the measured window.
+lda_tau_min = ""
+lda_tau_max = ""
+
+# How Tikhonov regularisation strength is chosen: "L-curve", "GCV", or "Fixed".
+lda_regularisation = "L-curve"
+
+# Strength used when lda_regularisation is "Fixed".
+lda_alpha = 0.001
+
+# Constrain the amplitude distribution to be non-negative.
+lda_non_negative = false
+
+# -----------------------------------------------------------------------------
+# 5. Overlay Style & Embedded Panels
+# -----------------------------------------------------------------------------
+[plots]
+# Marker for measured traces (any Matplotlib marker, e.g. "o", ".", "s", "^").
+data_marker = "o"
+
+# Opacity of data markers (0.0 to 1.0).
+data_alpha = 0.5
+
+# Marker size for data points.
+data_markersize = 3.0
+
+# Line style of the fitted curve drawn over data.
+fit_linestyle = "-"
+
+# Line width of fitted curve.
+fit_linewidth = 1.0
+
+# Opacity of fitted curve (0.0 to 1.0).
+fit_alpha = 1.0
+
+# Height ratio between trace axis and linked residual axis (e.g. 4.0 for 4:1).
+residuals_height_ratio = 4.0
+
+# Vertical spacing between kinetic trace panel and residual panel.
+residuals_hspace = 0.05
+
+# Default contour levels for contour maps.
+n_contours = 40
+
+# Margins of the embedded 3x3 figure in figure fractions.
+panel_left = 0.09
+panel_right = 0.975
+panel_top = 0.95
+panel_bottom = 0.11
+
+# Gaps between the three panels (fraction of average axis size).
+panel_hspace = 0.45
+panel_wspace = 0.32
+
+# Show 1-sigma uncertainty beside each lifetime in plot legends.
+show_uncertainties = true
+
+# Round lifetime value together with its uncertainty.
+round_uncertainties = true
+
+# -----------------------------------------------------------------------------
+# 6. GUI & Interface Defaults
+# -----------------------------------------------------------------------------
+[gui]
+# Live parameter update every N evaluations (0 disables).
+fit_monitor_every = 0
+
+# Height scale of the monitor bars: "symlog", "log", or "linear".
+fit_monitor_scale = "symlog"
+
+# Qt style/theme; a "dark" token selects the dark palette ("Fusion Dark").
+gui_theme = "Fusion"
+
+# GUI splash-screen duration in seconds (0 disables).
+splash_duration = 0.5
+
+# Default window geometry in pixels.
+window_width = 1010
+window_height = 860
+
+# Restore last window size on start-up.
+restore_window_size = true
+
+# Defaults for a new row of the lifetime table.
+table_default_lb = 0.0
+table_default_ub = inf
+table_decimals = 4
+new_rows_fixed = false
+
+# Automatic post-fit actions.
+plot_species_after_fit = true
+plot_profiles_after_fit = true
+plot_trio_after_fit = true
+open_scheme_after_fit = false
+autosave_session = false
+
+# -----------------------------------------------------------------------------
+# 7. Filesystem Defaults
+# -----------------------------------------------------------------------------
+[paths]
+# Default directory for file dialogs; empty string uses current / home folder.
+default_datadir = ""
