@@ -1,0 +1,77 @@
+\section{The PyMORGAN boundary}\label{sec:boundary}
+
+Most questions of the form ``where does this code belong?'' are answered by
+Table~\ref{tab:boundary}. Read it before adding a module.
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    Concern & Owner & Entry point \\
+    \midrule
+    File formats, loader registry      & PyMORGAN & \code{pm.load\_1D}, \code{pm.register\_loader} \\
+    Dataset objects                    & PyMORGAN & \code{pm.Dataset1D}, \code{pm.Dataset2D} \\
+    Background, chirp, solvent         & PyMORGAN & \code{Dataset1D.background\_correct}, \dots \\
+    Contour / spectra / kinetics plots & PyMORGAN & \code{Dataset1D.plot\_*} \\
+    Species-spectra rendering          & PyMORGAN & \code{plot\_species\_spectra} \\
+    Aesthetics, colourmaps, unit labels & PyMORGAN & \code{pm.Settings}, \code{pm.apply\_style()} \\
+    \midrule
+    Kinetic models, rate matrices      & PyRATE-TA & \code{pyrate_ta.models} \\
+    Fitting engines, global \& target  & PyRATE-TA & \code{pyrate_ta.fit} \\
+    Fit results, uncertainties         & PyRATE-TA & \code{pyrate_ta.results} \\
+    Analysis-only plots                & PyRATE-TA & \code{pyrate_ta.plot} \\
+    \bottomrule
+  \end{tabular}
+  \caption{Ownership of each concern across the two packages.}
+  \label{tab:boundary}
+\end{table}
+
+Three rules follow.
+
+\paragraph{The dependency is one-way.}
+\code{import pymorgan} inside PyRATE-TA is expected; \code{import pyrate_ta} inside
+PyMORGAN is a design error. PyMORGAN's \code{plot\_species\_spectra}
+deliberately takes plain arrays (\code{Sfit}, \code{Taus}, \code{TauErr},
+\code{isFixTau}, \code{modelType}) rather than a PyRATE-TA result object, precisely
+so the arrow never has to reverse; the adapter that produces those arrays lives
+on the PyRATE-TA side. \code{scripts/run\_checks.py} asserts the direction.
+
+\paragraph{No file readers here.}
+Loading goes through \code{pm.load\_1D(path, data\_type=\dots)}, which resolves
+the format through PyMORGAN's registry and therefore picks up every format
+PyMORGAN supports, present and future. A new format is contributed upstream to
+\code{pymorgan.oneD.load}, or registered at runtime with
+\code{pm.register\_loader} --- never forked into PyRATE-TA.
+
+\paragraph{One aesthetics system.}
+Call \code{pm.apply\_style()} and read \code{pm.get\_settings()} for label
+style, colourmap, time-axis convention and figure sizes. PyRATE-TA's own
+\code{Settings} holds analysis-only fields (chapter~\ref{sec:settings}).
+
+\subsection{A minimal session}
+
+\begin{lstlisting}
+import pymorgan as pm
+import pyrate_ta as pr
+
+data = pm.load_1D("scan.pdat", data_type="PDAT")  # PyMORGAN loads
+data.background_correct(tmin=-20, tmax=-5)        # PyMORGAN processes
+fit  = pr.fit_global(data, n_components=3)        # PyRATE-TA fits
+data.plot_species_spectra(*fit.as_species_args()) # PyMORGAN plots
+\end{lstlisting}
+
+\subsection{Units}\label{sec:units}
+
+Signal data is in mOD, delays are in the dataset's own time unit and the probe
+axis in its native spectral unit. Fitted lifetimes are reported in the
+dataset's time unit and are never silently converted: a lifetime printed
+without its unit, or converted behind the user's back, is a bug.
+
+\subsection{Extraction of traces}
+
+PyMORGAN removed its own \code{extract\_kinetic}/\code{fit\_kinetics} when
+PyRATE-TA took over analysis, so there is no upstream extraction helper to call:
+that primitive lives here. For a headless fit, slice the dataset directly
+(\code{data.Z[:, idx, detector]}) rather than re-deriving pixel-lookup logic;
+\code{Dataset1D.plot\_kinetics} returns the extracted data as its third value
+when a figure is wanted as well.

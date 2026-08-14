@@ -1,0 +1,206 @@
+\section{Kinetic models}\label{sec:models}
+
+\subsection{The bilinear model}
+
+Every model in PyRATE-TA produces a concentration matrix \Cmat{} of shape
+$N_\text{delays} \times N_\text{components}$. The data matrix is then bilinear,
+
+\begin{equation}
+  \Dmat \;\approx\; \Cmat\,\Smat^{\mathsf{T}},
+  \label{eq:bilinear}
+\end{equation}
+
+with $\Smat$ of shape $N_\text{pixels} \times N_\text{components}$ holding the
+component spectra. The kinetics enter only through \Cmat, and the spectra only
+through \Smat; this separation is what makes global analysis tractable
+(section~\ref{sec:varpro}).
+
+\subsection{Model families}
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    \code{ModelType} & Scheme & Spectra obtained \\
+    \midrule
+    \code{Parallel}   & independent decays          & DAS (decay-associated) \\
+    \code{Sequential} & $A \to B \to C \to \cdots$  & EAS (evolution-associated) \\
+    \code{Target}     & general \Kmat, with branching & SAS (species-associated) \\
+    \bottomrule
+  \end{tabular}
+  \caption{Model families and the meaning of the resulting spectra.}
+  \label{tab:models}
+\end{table}
+
+The distinction is not cosmetic. A parallel model makes no claim about
+connectivity, and its DAS are linear combinations of the true species spectra;
+a sequential model assumes a single irreversible chain, and its EAS are the
+spectra of the successive evolving states; only a target model with an
+explicitly justified \Kmat{} yields spectra of actual species. The
+\code{modelType} string handed to PyMORGAN's \code{plot\_species\_spectra}
+must reflect which of the three was used, because it drives the legend wording
+upstream --- mislabelling a DAS as an SAS is a scientific error, not a
+formatting one.
+
+\subsection{Parallel and sequential models}
+
+For a parallel model with lifetimes $\tau_i$,
+
+\begin{equation}
+  C_{ni} = \exp\!\left(-t_n/\tau_i\right),
+\end{equation}
+
+and for a sequential model the same expression is replaced by the analytic
+solution of the chain, which for distinct lifetimes is a sum of exponentials
+with the well-known amplitude factors
+$\prod_{j\neq i}\left(\tau_i^{-1}-\tau_j^{-1}\right)^{-1}$. Both are special
+cases of the rate matrix below, and are implemented as such wherever that costs
+nothing, so there is one propagator to test rather than three.
+
+\subsection{Rate matrices}\label{sec:kmat}
+
+A target model is defined by its rate matrix \Kmat, with off-diagonal element
+$K_{ij}$ the rate from compartment $j$ to compartment $i$ and the diagonal the
+negative sum of all rates leaving that compartment. The populations obey
+
+\begin{equation}
+  \frac{\mathrm{d}\mathbf{c}(t)}{\mathrm{d}t} = \Kmat\,\mathbf{c}(t),
+  \qquad
+  \mathbf{c}(0) = \mathbf{c}_0 ,
+\end{equation}
+
+so that $\mathbf{c}(t) = \exp(\Kmat t)\,\mathbf{c}_0$. \Kmat{} is built
+explicitly and \Cmat{} obtained by eigendecomposition where \Kmat{} is
+diagonalisable, and by a matrix-exponential propagator otherwise.
+
+\paragraph{Exactly degenerate lifetimes.} When two rates coincide, \Kmat{} is
+defective: the eigenvector matrix is singular and the eigenvalue solution does
+not exist, although the kinetics are perfectly well behaved (for
+$A \rightarrow B \rightarrow$ with equal rates the closed form is
+$c_B = kt\,e^{-kt}$). PyRATE-TA splits the degeneracy by an antisymmetric diagonal
+perturbation of relative size $10^{-6}$ and continues. This is not a cosmetic
+choice: an optimiser routinely passes through equal lifetimes on its way to the
+optimum, and refusing to evaluate there would abort otherwise sound fits. The
+perturbation is far below any experimental precision and is logged.
+
+\paragraph{Near-degenerate lifetimes.} When two eigenvalues approach each
+other, the eigenvector matrix becomes ill-conditioned. The symptom in a fit is a
+pair of amplitudes of opposite sign that grow without bound while the residual
+barely improves. PyRATE-TA guards this case explicitly and warns when two fitted
+lifetimes come within \code{degeneracy\_warn\_ratio} of each other
+(chapter~\ref{sec:settings}); a fit that trips this warning should be re-run
+with one component fewer before its lifetimes are believed.
+
+\subsection{Predefined schemes}
+
+Branched schemes are kept in \code{pyrate_ta.models.TARGET\_SCHEMES}, keyed by a
+short identifier: equilibria (\code{A\_eq\_B} and its decaying variants),
+chains with an equilibrium (\code{A\_eq\_B\_to\_C}, \code{A\_eq\_B\_eq\_C}),
+branchings into a common product (\code{branch\_to\_common\_D}) and parallel
+chains (\code{two\_chains\_decaying\_ends}). A scheme carries its own species
+and rate counts, and these need not agree: \code{A <=> B; A ->; B ->} has two
+compartments and four rate constants. A target model therefore takes its size
+from the scheme, not from the requested number of components, and the number of
+free lifetimes is the scheme's rate count.
+
+\begin{lstlisting}
+import pyrate_ta as pr
+
+model = pr.make_model("Target", scheme="A_eq_B_to_C")
+C = model.concentrations(t, taus=[2.0, 5.0, 20.0, 200.0], irf_fwhm=0.15)
+\end{lstlisting}
+
+\subsection{Writing a scheme}\label{sec:notation}
+
+A target model is written as its reactions, not as a matrix:
+
+\begin{lstlisting}
+A  ->  B   : k1          # a step
+B <->  C   : k2, k3      # an equilibrium (forward, backward)
+C  ->      : k4          # decay to the ground state
+init A = 1               # optional initial populations
+\end{lstlisting}
+
+\code{pyrate\_ta.scheme\_from\_text} turns this into a scheme, and the rate matrix
+is \emph{derived}: every reaction contributes $-k$ to the reactant's diagonal
+and $+k$ to the product's row, so the columns cannot fail to balance. Three
+consequences are worth stating, because they are what make the notation
+general:
+
+\begin{itemize}
+  \item \textbf{Species are named.} \code{S1}, \code{ICT}, \code{T1} appear on
+    the diagram, in the lifetime table and in the result, so a scheme reads as
+    chemistry rather than as indices.
+  \item \textbf{Rates are named, so they can be shared.} The same rate name on
+    two arrows is \emph{one} fitted parameter used twice --- the natural way to
+    impose ``these two channels have the same rate'', which a rate matrix
+    cannot express without a hand-written builder.
+  \item \textbf{Any topology.} Chains, branches, equilibria, cycles,
+    disconnected pools and non-decaying products are all just lines; nothing is
+    special-cased, and \code{scheme\_to\_text} regenerates the notation so a
+    scheme round-trips.
+\end{itemize}
+
+A malformed scheme is refused with the offending line number, never
+half-built; \code{check\_scheme\_text} returns that message without raising,
+which is what the editor's \emph{Update K graph} button reports.
+
+\subsection{Scheme diagrams}
+
+\code{pyrate_ta.plot\_scheme} draws the compartment diagram of any model, scheme
+or fit result: one node per compartment, one arrow per rate, the ground state
+as a separate node, and an equilibrium as two opposed arrows. Arrows are
+labelled with the \emph{rate constants themselves} --- $k_1$, $k_2$, and a sum
+such as $k_1+k_2$ where a compartment branches --- rather than with numbers, so
+the diagram tells you which row of the rate table an arrow corresponds to when
+setting values and bounds. The mapping is derived, not assumed: feeding the
+scheme's $k \rightarrow \Kmat$ builder a unit vector shows exactly where each
+constant appears. Pass \code{rate\_labels="value"} for the lifetime of each
+step instead.
+
+Every family is laid out \textbf{horizontally}: population flows left to right
+and the ground state sits below, so a branched scheme spreads across a wide,
+short figure instead of stacking a column that wastes the width and shrinks the
+nodes.
+
+The scheme is recovered from whatever the object carries. A fit records its
+scheme twice --- as the notation (\code{scheme\_text}) and as a key --- and the
+\emph{text} is parsed first, so a scheme written in the editor keeps its species
+names and rate symbols on the diagram. This matters because a typed scheme is
+stored under the key \code{"custom"}, which is in no registry: consulting the
+key alone made drawing one fail outright.
+
+\subsection{Instrument response}\label{sec:irf}
+
+The instrument response is convolved into \Cmat, not into the data. For
+exponential models this is done analytically: the convolution of a Gaussian of
+width $\sigma$ centred at $t_0$ with a decaying exponential is an exponentially
+modified Gaussian,
+
+\begin{equation}
+  \left(g \ast e^{-t/\tau}\right)(t)
+  = \tfrac{1}{2}\exp\!\left(\frac{\sigma^{2}}{2\tau^{2}} - \frac{t-t_0}{\tau}\right)
+    \operatorname{erfc}\!\left(\frac{1}{\sqrt{2}}\left(\frac{\sigma}{\tau} - \frac{t-t_0}{\sigma}\right)\right),
+  \label{eq:emg}
+\end{equation}
+
+which is both faster and better conditioned than numerical convolution. The
+three handling modes are \code{None} (no IRF), \code{Gaussian}
+(equation~\ref{eq:emg}) and \code{Clip} (drop the delays below \code{t\_min}
+instead of modelling the response).
+
+\subsection{The coherent artefact}
+
+The signal around $t=0$ contains contributions --- cross-phase modulation,
+two-photon absorption, stimulated Raman --- that no kinetic model describes.
+Two treatments are supported: clipping the early delays, or adding artefact
+components (the IRF and its first derivatives) to the model. Clipping changes
+which data the fit saw, so the applied \code{t\_min} is part of the result's
+reproducibility payload (section~\ref{sec:repro}) and not merely a plotting
+choice.
+
+\subsection{Chirp}
+
+Chirp is corrected \emph{upstream}, in PyMORGAN, before the data reach a fit.
+PyRATE-TA does not implement a second chirp correction, and a fit of visibly
+chirped data is a data-processing mistake rather than a modelling one.

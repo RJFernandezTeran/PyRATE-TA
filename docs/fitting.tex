@@ -1,0 +1,388 @@
+\section{Fitting}\label{sec:fitting}
+
+\subsection{Variable projection}\label{sec:varpro}
+
+In equation~\ref{eq:bilinear} the spectra $\Smat$ enter linearly. For any fixed
+set of non-linear parameters (the lifetimes, $t_0$ and the IRF width) the
+best-fit spectra are therefore available in closed form,
+
+\begin{equation}
+  \Smat^{\mathsf{T}} = \left(\Cmat^{\mathsf{T}}\Cmat\right)^{-1}\Cmat^{\mathsf{T}}\Dmat ,
+  \label{eq:varpro}
+\end{equation}
+
+and only the non-linear parameters need to go to the optimiser. This is
+\emph{variable projection}: for a 500-pixel, three-component fit it reduces the
+parameter vector from about 1500 entries to three, and it conditions the
+problem far better than fitting amplitudes and lifetimes jointly. Amplitudes
+must not be placed in the optimiser's parameter vector.
+
+In practice equation~\ref{eq:varpro} is evaluated through a least-squares
+solver rather than by forming the normal equations, which squares the condition
+number of \Cmat.
+
+\subsection{Engines}
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{lll}
+    \toprule
+    Engine & Data & Output \\
+    \midrule
+    Single-trace fit & one kinetic trace       & lifetimes, amplitudes \\
+    Global analysis  & full $\Dmat$, free \Kmat & lifetimes, DAS or EAS \\
+    Target analysis  & full $\Dmat$, fixed connectivity & rates, SAS \\
+    LDA              & full $\Dmat$, dense grid & lifetime density map \\
+    \bottomrule
+  \end{tabular}
+  \caption{The four fitting engines. Global, target and single-trace share the
+    variable-projection driver; LDA is a separate regularised linear solve.}
+  \label{tab:engines}
+\end{table}
+
+\begin{lstlisting}
+# Global analysis
+fit = pr.fit_global(data, n_components=3, model_type="Sequential")
+print(fit.taus, fit.tau_err)
+data.plot_species_spectra(*fit.as_species_args())
+
+# Preview (no optimisation)
+prev = pr.preview_global(data, taus=[1.0, 10.0, 100.0])
+
+# Target analysis
+fit = pr.fit_target(data, scheme="A_eq_B_to_C", taus=[2.0, 5.0, 20.0, 200.0])
+
+# Single-trace
+fit = pr.fit_kinetics(t, y, n_components=2)
+
+# Lifetime density analysis
+lda = pr.fit.lda.solve_lda(data, n_taus=100, alpha="auto", non_negative=True)
+\end{lstlisting}
+
+Every fit routine is callable headlessly: a fit must be reachable and testable
+from a plain script with no \code{QApplication}. The GUI is a caller, never a
+prerequisite. Where a long fit puts up a progress dialog, the optimiser reports
+through a plain callback and the GUI adapts it; the engine itself does not
+touch widgets, and guards on \code{QApplication.instance()} being \code{None}.
+
+\paragraph{Preview mode.} \code{pr.preview\_global} evaluates a model at
+the given lifetimes \emph{without} optimising. The spectra still follow from
+the data (they are the least-squares solution for the given \Cmat), so a
+preview shows what those lifetimes actually imply and what the residual would
+be. Nothing is fitted, so there is no convergence report and no uncertainties
+--- and the result says so rather than presenting a guess as an answer.
+
+\paragraph{Component ordering.} Variable projection sees only the column
+space of \Cmat, so permuting the lifetimes fits equally well and the
+optimiser's ordering depends on the initial guess. For parallel and sequential
+models the components are sorted by lifetime on output, the spectra permuted to
+match, and the fact recorded on the result (\code{sorted\_by\_lifetime}). A
+target model is left exactly as fitted: its compartments are defined by the
+scheme, and reordering them would misrepresent it.
+
+\subsection{The coherent artefact}\label{sec:artefact}
+
+Around time zero a transient carries signal no kinetic model describes:
+cross-phase modulation and two-photon absorption in the solvent and the cell
+windows. Left alone, the fit absorbs it into the shortest lifetime, which is
+then not a lifetime at all.
+
+Ticking \emph{Fit coherent artefact} (beside the IRF table, or
+\code{coherent\_artifact=True} on any engine) appends three columns to the
+design matrix: the instrument response and its first two derivatives,
+\[
+  g(t),\qquad g'(t),\qquad g''(t),
+\]
+each scaled to unit maximum so the second derivative --- larger than the
+Gaussian by $1/\sigma^{2}$ --- does not dominate the conditioning. Their
+amplitudes are solved per probe pixel exactly like a species spectrum, so the
+artefact gets spectra of its own instead of distorting $\tau_1$. The
+description follows Kovalenko \emph{et al.}, Phys.\ Rev.\ A \textbf{59}, 2369
+(1999), which the log cites when the basis is first built.
+
+The artefact columns are \emph{not} species: the result records how many there
+are (\code{n\_artifact}), \code{as\_species\_args()} hands over only the kinetic
+ones --- a column with no lifetime must not be labelled with someone else's ---
+and \code{artefact\_spectra} exposes the rest. They are worth a look: an
+artefact spectrum with amplitude far from time zero is a sign it is absorbing
+real kinetics. The option needs a Gaussian IRF, since the basis is built from
+it; without one the checkbox is disabled and the engines refuse rather than
+inventing a width.
+
+\subsection{Constrained amplitudes and sign masks}
+
+When physical constraints are imposed on the species spectra --- non-negative
+absorption for real excited states, non-positive for a ground-state bleach
+contribution --- variable projection solves a bounded linear least-squares
+problem per probe pixel rather than an unconstrained linear solve,
+
+\begin{equation}
+  \min_{\mathbf{S}_p}\,
+    \lVert \mathbf{C}_w\,\mathbf{S}_p - \mathbf{d}_{w,p}\rVert^2
+  \quad\text{subject to}\quad
+    \mathbf{l} \le \mathbf{S}_p \le \mathbf{u}.
+\end{equation}
+
+A \code{sign\_mask} array of length $N_c$ controls this: $+1$ enforces
+$S_p \ge 0$, $-1$ enforces $S_p \le 0$, and $0$ is unconstrained. When all
+entries are zero the problem collapses to the standard unconstrained solve.
+Simple non-negative least squares uses \code{scipy.optimise.nnls}; a mixed
+mask uses \code{scipy.optimise.lsq\_linear}. The constrained solver is in
+\code{pyrate_ta.fit.constrained}.
+
+\subsection{Ground-state bleach and absolute species spectra}\label{sec:groundstate}
+
+Transient absorption and vibrational data are difference spectra:
+$\mathbf{S}_\text{diff} = \mathbf{S}_\text{excited} - f\,\mathbf{GS}$.
+Adding back a scaled ground-state spectrum converts them to absolute absorption
+spectra:
+\begin{equation}
+  \mathbf{S}_\text{abs}[:,\,i]
+    = \mathbf{S}_\text{diff}[:,\,i] + f_i\cdot a\cdot \mathbf{GS},
+\end{equation}
+where $a$ is the ground-state scale factor and $f_i$ is the fraction of
+ground state bleached by species $i$.
+
+\code{pyrate_ta.fit.groundstate.compute\_absolute\_spectra} performs this
+conversion. The maximum physically allowable scale factor $a_\text{max}$ ---
+the largest $a$ before any pixel in any absolute spectrum turns negative --- is
+computed first, so the automatic choice (\code{gs\_scale="auto"}) selects the
+tightest non-negative solution. The result stores \code{S\_abs},
+\code{gs\_scale} and \code{a\_max} for plotting and reporting.
+
+\subsection{Lifetime density analysis}\label{sec:lda}
+
+Instead of fitting $N$ discrete lifetimes, LDA solves for a continuous
+distribution of amplitudes over a dense, logarithmically spaced grid of fixed
+lifetimes,
+
+\begin{equation}
+  \min_{\Smat^{\mathsf{T}}}
+  \left\lVert \mathbf{W} \odot \left(\Dmat - \Cmat(\boldsymbol{\tau}_\text{grid})\,
+  \Smat^{\mathsf{T}}\right)\right\rVert^2
+  + \alpha^2 \left\lVert \mathbf{L}\,\Smat^{\mathsf{T}}\right\rVert^2,
+  \label{eq:lda}
+\end{equation}
+
+where $\mathbf{L}$ is a regularisation operator and $\alpha$ controls the
+balance between fit quality and smoothness.
+
+\paragraph{Regularisation operators.} Three are available: the identity
+(ridge, $\mathbf{L} = \mathbf{I}$), a first-difference operator ($\mathbf{L} =
+\mathbf{D}_1$, penalising slope), and a second-difference operator ($\mathbf{L}
+= \mathbf{D}_2$, penalising curvature; the default). The augmented system
+$[\Cmat;\,\alpha\mathbf{L}]\,\Smat^{\mathsf{T}} = [\Dmat;\,\mathbf{0}]$ is
+solved in one least-squares call.
+
+\paragraph{Automatic alpha selection.} When \code{alpha="auto"} three
+methods are available:
+\begin{description}
+  \item[\code{lcurve}] The corner of the log-residual--log-norm curve ---
+    maximum curvature by the Menger formula (Hansen 1992). This is the default.
+  \item[\code{gcv}] Generalised cross-validation (Golub et al., 1979).
+  \item[\code{morozov}] Morozov discrepancy principle: match the residual norm
+    to the estimated noise level, estimated from the pre-time-zero region.
+\end{description}
+
+\paragraph{Additional options.}
+\begin{description}
+  \item[\code{non\_negative}] Enforce $S \ge 0$ per probe pixel via NNLS
+    after the alpha scan. Physically motivated for some spectral regions.
+  \item[\code{svd\_components}] Pre-filter the data matrix with the top $K$
+    SVD components before constructing \Cmat, suppressing noise-dominated
+    singular values.
+  \item[\code{n\_bootstraps}] Monte Carlo resampling of the residuals:
+    refits the LDA \code{n\_bootstraps} times and records the standard
+    deviation of the integrated amplitude $A(\tau) = \sum_p |S_{p,i}|$ as a
+    confidence estimate.
+  \item[\code{find\_peaks}] Automatic peak centroid detection from
+    $A(\tau)$, using \code{scipy.signal.find\_peaks} with a 5\% prominence
+    threshold.
+  \item[\code{coherent\_artifact}] Appends the same IRF-derivative basis as
+    the discrete engines (section~\ref{sec:artefact}) to absorb time-zero
+    contributions, leaving the regularised columns for the kinetics only.
+\end{description}
+
+The result is an \code{LDAResult} object (section~\ref{sec:results-lda})
+carrying the density map, the alpha scan diagnostics, residuals, and optional
+bootstrap errors. It exports the map to PyMORGAN's PDAT format via
+\code{.to\_pdat(path)}.
+
+\subsection{Watching a fit run}\label{sec:monitor}
+
+A global fit blocks for seconds to minutes, and the cost alone says little
+about what is going wrong. Setting \code{[gui] fit\_monitor\_every = N} opens a
+window showing one bar per parameter, its current value above it and its name
+below, refreshed every $N$ residual evaluations; $N = 0$ (the default) never
+opens it. The scale is symlog by default
+(\code{fit\_monitor\_scale}), which is the only one that shows a lifetime of
+3000 and a time zero of $\approx 0$ on the same axis. Fixed parameters are drawn
+greyed, so a bar that never moves is not mistaken for one that has converged.
+
+The rate is a setting because each update costs a redraw \emph{and} an
+event-loop pump: at $N = 1$ a fast fit spends more time drawing than fitting,
+while $N = 5$--$10$ is enough to watch a lifetime run away to the edge of the
+delay window. The drawing lives in \code{pyrate_ta.plot.monitor} and is Qt-free, so
+the same bars --- and \code{plot\_parameter\_history}, the trajectory against
+evaluation number --- can be produced from a script.
+
+\subsection{Weighting and the fit statistic}\label{sec:weights}
+
+If the dataset carries a per-point noise estimate --- a sibling \code{.pdatn}
+file loaded alongside the \code{.pdat}, or the spread over single scans --- the
+residuals can be weighted by it. PyMORGAN supplies the array through
+\code{Dataset1D.noise\_array()}; PyRATE-TA never estimates noise itself.
+
+With weights $w = 1/\sigma$, and $N$ the number of points actually fitted and
+$p$ the number of free parameters, the statistic is a true reduced
+chi-squared,
+
+\begin{equation}
+  \chi^{2}_{\nu} = \frac{1}{N-p}\sum_{n,k}
+    \left(\frac{D_{nk} - \left(\Cmat\Smat^{\mathsf{T}}\right)_{nk}}{\sigma_{nk}}\right)^{2},
+  \label{eq:chi2red}
+\end{equation}
+
+so that $\chi^{2}_{\nu} \approx 1$ means the residuals sit at the noise level,
+$\gg 1$ that the model is too simple (or the noise underestimated), and
+$\ll 1$ that the data are being overfitted (or the noise overestimated).
+Without weights the reported statistic is the plain sum of squared residuals,
+which carries no such interpretation and is not comparable between datasets.
+The read-out in the GUI is therefore labelled \emph{SSR} or \emph{red.\
+chi2} according to which one is in force, and never simply ``$\chi^2$''.
+
+The parameter count $p$ includes the $N_p N_c$ linear amplitudes: variable
+projection solves them in closed form, but it still spends those degrees of
+freedom, so counting only the non-linear parameters would flatter the fit. The
+value obtained with the non-linear-only denominator is reported alongside
+(\code{FitStatistic.value\_nonlinear\_dof}), because the two differ by a large
+factor and the choice should never be implicit.
+
+Two practical points. Noise values are clipped from below at
+\code{noise\_floor\_fraction} of the median, because a single near-zero
+$\sigma$ would otherwise dominate the cost function entirely; and points with
+non-finite or non-positive $\sigma$ are dropped from the fit along with their
+data, with the count recorded on the result. Weights are diagonal: correlation
+of the noise between pixels is ignored, so $\chi^{2}_{\nu}$ should not be read
+as more rigorous than that assumption allows.
+
+Requesting weights for a dataset that has no noise array raises. Falling back
+silently to an unweighted fit while still calling the result a reduced
+chi-squared would be a misreported statistic, which is worse than a refusal.
+
+\subsection{The fixed/free mask}
+
+A caller that knows only about the lifetimes --- the GUI reads its mask from the
+lifetime table --- may pass a mask of ``n\_lifetimes'' entries while the
+parameter vector is longer. Time zero and the IRF width are appended to that
+vector \emph{only when they are being fitted}, so the entries that follow are
+free by construction and the mask is padded rather than refused. A mask of any
+\emph{other} length is still an error, naming the parameters expected: padding
+must complete an incomplete answer, not reinterpret a wrong one.
+
+A \code{fixed} mask may also be a sequence of parameter \emph{names}
+(e.g.\ \code{["tau1", "t0"]}), in which case the driver matches by name and
+the rest are free.
+
+\subsection{Uncertainties}
+
+One-sigma uncertainties are reported from the linearised covariance estimate at
+the optimum. They are conditional on the model being correct, and they are not
+confidence intervals for the choice of model: a three-component fit of
+two-component data can return small uncertainties on three meaningless
+lifetimes. Parameters held fixed receive no uncertainty and are flagged as
+fixed, so that a fixed lifetime can never be mistaken for a well-determined
+one.
+
+\subsection{Convergence}\label{sec:convergence}
+
+A non-converged fit raises, or is flagged on the result object; it is never
+returned as though it had converged. The optimiser's own termination report
+(the reason for stopping, the iteration count, the final cost) travels with the
+result. Hitting \code{max\_iterations} is a non-convergence, not a result.
+
+Parameters resting on a finite bound at termination are reported separately
+(\code{FitReport.at\_bounds}); a bounded optimum is a constraint, not an
+optimum, and downstream code should treat it as such.
+
+\subsection{Results}\label{sec:results}
+
+Three result classes share the common fields of \code{KineticFit}:
+
+\begin{description}
+  \item[\code{KineticFit}] Single-trace or multi-trace result: lifetimes,
+    amplitudes, residuals, reproducibility payload.
+  \item[\code{GlobalFit}] Adds nothing structurally (the spectra live in
+    \code{S}), but is typed distinctly so a function can assert it received
+    a global result rather than a single-trace one.
+  \item[\code{TargetFit}] Adds \code{scheme\_key}, \code{scheme\_label},
+    \code{scheme\_text}, the rate matrix \code{K} and \code{eigenvalues}.
+    The eigenvalues are stored because they, not the rates, are what the data
+    actually determine for a branched scheme.
+\end{description}
+
+Every result exposes \code{as\_species\_args()} (the adapter for PyMORGAN's
+\code{plot\_species\_spectra}), \code{spectra\_kind} (DAS / EAS / SAS),
+\code{artefact\_spectra} (the coherent-artefact columns, if any),
+\code{summary()} and \code{log\_summary()}.
+
+\subsubsection{LDA result}\label{sec:results-lda}
+
+\code{LDAResult} carries the density map \code{S\_map} of shape
+$(N_p \times M)$, the lifetime grid \code{tau\_grid} of length $M$, the chosen
+$\alpha$, the L-curve diagnostics, optional bootstrap errors, and a list of
+detected peaks. It also carries \code{citations()} and \code{format\_citations()},
+which enumerate the references for whichever algorithm combination was used, and
+\code{to\_pdat(path)}, which exports the 2D map to PyMORGAN's PDAT format for
+further plotting.
+
+\subsection{Reproducibility}\label{sec:repro}
+
+A result object carries enough to reproduce itself:
+
+\begin{itemize}
+  \item the model identity (family, number of components, the \Kmat{} where applicable);
+  \item the initial guesses and the bounds;
+  \item which parameters were held fixed;
+  \item the delay and probe ranges actually fitted, including any clipping applied for the coherent artefact;
+  \item the solver's convergence report.
+\end{itemize}
+
+A lifetime reported without its uncertainty and its fixed/free flag is not a
+result. Results serialise through \code{pyrate_ta.io}, which handles fit sessions
+--- parameters, masks, results --- and not raw spectroscopy formats.
+
+\subsection{Fit session files}\label{sec:sessions}
+
+\code{pr.save\_fit(path, fit)} writes a \code{.prfit} file: a compressed
+\code{.npz} archive holding the arrays (spectra, concentration profiles,
+residuals, axes) and the reproducibility payload as a JSON string inside it.
+Keeping them together means a saved fit cannot lose its provenance.
+
+\code{pr.load\_fit(path)} reopens a session as a \code{LoadedFit}: the arrays
+as attributes, the JSON payload as \code{.meta}. It is deliberately \emph{not}
+a live \code{KineticFit} --- a reopened session has no dataset behind it and
+cannot be refitted as it stands, and returning something that looks like a
+fresh result would invite exactly that. Everything needed to set the fit up
+again is in \code{.meta}. A target fit reopens with its \code{scheme\_text},
+so the scheme is editable without re-entering it.
+
+\begin{lstlisting}
+path = pr.save_fit("scan_fit", fit)     # -> scan_fit.prfit
+prev = pr.load_fit("scan_fit.prfit")
+print(prev.summary())                    # same format as a live result
+print(prev.taus)                         # numpy arrays as attributes
+\end{lstlisting}
+
+The format version is embedded in every file and checked on load: a file
+written by a newer PyRATE-TA that the current build cannot interpret raises rather
+than silently mis-reading it.
+
+\subsection{Testing}
+
+Synthetic-recovery tests are the backbone of the test suite: build data from
+known parameters, fit it, and assert that the parameters come back within
+tolerance. A fitting project without these is untested regardless of its line
+coverage. The failure modes are tested too --- a non-converged fit must be
+flagged rather than silently returned, and near-degenerate lifetimes must not
+produce exploding amplitudes without a warning.
