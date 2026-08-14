@@ -27,7 +27,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 import pyrate_ta as pr  # noqa: E402
 
-_UI_FILE = REPO / "src" / "pyrate" / "gui" / "main_window.ui"
+_UI_FILE = REPO / "src" / "pyrate_ta" / "gui" / "main_window.ui"
 
 results: list[tuple[str, bool]] = []
 
@@ -167,7 +167,7 @@ def check_boundary() -> None:
         ]
         check("boundary: pymorgan does not import pyrate_ta", not offenders)
 
-    pr_src = REPO / "src" / "pyrate"
+    pr_src = REPO / "src" / "pyrate_ta"
     readers = [
         str(f.relative_to(pr_src))
         for f in pr_src.rglob("*.py")
