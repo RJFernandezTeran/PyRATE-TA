@@ -543,12 +543,13 @@ def test_about_dialog():
         subtitle="Rate Analysis & Target-model Engine",
         description="Sample description.",
         manual_pdf_path="docs/main.pdf",
+        website_url="https://www.unige.ch/sciences/chifi/fernandez-teran/",
         github_url="https://github.com/RJFernandezTeran/PyRATE-TA",
     )
     assert dlg.windowTitle() == "About PyRATE-TA"
     assert dlg.isModal()
     assert dlg.width() == 580
-    assert dlg.height() == 520
+    assert dlg.height() == 540
 
     btn_manual = dlg.findChild(QPushButton, "btnManual")
     assert btn_manual is not None
@@ -561,5 +562,6 @@ def test_about_dialog():
     lbl_details = dlg.findChild(QLabel, "lblDetails")
     assert lbl_details is not None
     assert "https://github.com/RJFernandezTeran/PyRATE-TA" in lbl_details.text()
+    assert "https://www.unige.ch/sciences/chifi/fernandez-teran/" in lbl_details.text()
     dlg.close()
 
