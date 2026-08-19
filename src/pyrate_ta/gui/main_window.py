@@ -411,6 +411,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             department="Department of Physical Chemistry",
             institution="University of Geneva, Switzerland",
             contact_email="Ricardo.FernandezTeran@unige.ch",
+            website_url="https://www.unige.ch/sciences/chifi/fernandez-teran/",
             github_url="https://github.com/RJFernandezTeran/PyRATE-TA",
             license_name="GNU AGPLv3 License",
             banner_path=icon if os.path.exists(icon) else None,
