@@ -109,7 +109,7 @@ def test_the_panel_sits_in_the_free_cell_of_the_plot_grid():
 
 
 def test_promoted_widgets_come_from_pymorgan():
-    """The custom widgets are PyMORGAN's; PyRATE must not fork them."""
+    """The custom widgets are PyMORGAN's; PyRATE-TA must not fork them."""
     text = UI_FILE.read_text(encoding="utf-8")
     headers = set(re.findall(r"<header>([^<]+)</header>", text))
     assert headers
@@ -528,8 +528,38 @@ def test_scheme_source_ignores_fit_result():
     assert obj is win.custom_scheme
     assert np.allclose(taus, [1.0, 2.0])
 
-    win.close()
+def test_about_dialog():
+    """ModernAboutDialog initializes correctly with branding, manual, and GitHub buttons."""
+    _require_qt()
+    from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
+    from pyrate_ta.gui.about_dialog import ModernAboutDialog
 
+    _app = QApplication.instance() or QApplication([])
+    dlg = ModernAboutDialog(
+        title="About PyRATE-TA",
+        app_name="PyRATE-TA",
+        version="1.0.0",
+        subtitle="Rate Analysis & Target-model Engine",
+        description="Sample description.",
+        manual_pdf_path="docs/main.pdf",
+        github_url="https://github.com/RJFernandezTeran/PyRATE-TA",
+    )
+    assert dlg.windowTitle() == "About PyRATE-TA"
+    assert dlg.isModal()
+    assert dlg.width() == 580
+    assert dlg.height() == 520
 
+    btn_manual = dlg.findChild(QPushButton, "btnManual")
+    assert btn_manual is not None
+    assert "Open User Manual" in btn_manual.text()
+
+    btn_github = dlg.findChild(QPushButton, "btnGithub")
+    assert btn_github is not None
+    assert "GitHub" in btn_github.text()
+
+    lbl_details = dlg.findChild(QLabel, "lblDetails")
+    assert lbl_details is not None
+    assert "https://github.com/RJFernandezTeran/PyRATE-TA" in lbl_details.text()
+    dlg.close()
 

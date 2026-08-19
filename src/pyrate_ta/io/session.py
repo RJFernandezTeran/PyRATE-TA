@@ -227,15 +227,15 @@ def load_fit(path) -> LoadedFit:
     target = Path(path)
     with np.load(target, allow_pickle=False) as data:
         if "meta" not in data:
-            raise ValueError(f"{target} is not a PyRATE fit session (no metadata)")
+            raise ValueError(f"{target} is not a PyRATE-TA fit session (no metadata)")
         meta = json.loads(str(data["meta"]))
         arrays = {key: data[key] for key in data.files if key != "meta"}
 
     version = int(meta.get("format_version", 0))
     if version > FORMAT_VERSION:
         raise ValueError(
-            f"{target} was written by a newer PyRATE (format {version}; this build reads "
-            f"{FORMAT_VERSION}). Update PyRATE to open it."
+            f"{target} was written by a newer PyRATE-TA (format {version}; this build reads "
+            f"{FORMAT_VERSION}). Update PyRATE-TA to open it."
         )
     logger.info("Loaded fit session %s (%s)", target.name, meta.get("model_type"))
     return LoadedFit(meta, arrays)

@@ -3,7 +3,7 @@
 The weighting rules are the ones agreed in ``todo_fitting_routines.md`` §3:
 
 * weights are ``1/sigma`` with ``sigma`` the per-point noise PyMORGAN supplies
-  (:meth:`pymorgan.Dataset1D.noise_array`); PyRATE never estimates noise;
+  (:meth:`pymorgan.Dataset1D.noise_array`); PyRATE-TA never estimates noise;
 * ``sigma`` is clipped from below at ``noise_floor_fraction`` of its median, so
   one near-zero value cannot dominate the cost function;
 * points with non-finite or non-positive ``sigma``, or non-finite data, get
