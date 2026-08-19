@@ -605,7 +605,7 @@ _ACTIVE = Settings()
 
 
 def get_settings() -> Settings:
-    """The active PyRATE settings object."""
+    """The active PyRATE-TA settings object."""
     return _ACTIVE
 
 

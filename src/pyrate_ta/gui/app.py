@@ -1,4 +1,4 @@
-"""Application entry point for the PyRATE GUI.
+"""Application entry point for the PyRATE-TA GUI.
 
 Neither ``pyrate`` nor ``pymorgan`` is imported at module level: the splash
 screen has to reach the screen before the pipelines (scipy, matplotlib, the
@@ -25,7 +25,7 @@ os.environ.setdefault("QT_API", "pyqt6")
 def _load_pymorgan_settings():
     """Activate PyMORGAN's ``settings.toml`` -- the aesthetics half.
 
-    PyRATE loads only its own file, so without this PyMORGAN's settings stayed
+    PyRATE-TA loads only its own file, so without this PyMORGAN's settings stayed
     at their dataclass defaults and the two applications drew the same data
     differently: the ``profile`` field selects the ``.mplstyle``, and with it the
     font stack and every font size, so a user who had chosen a profile or a
@@ -54,9 +54,9 @@ def _report_missing_fonts() -> list[str]:
     """Say so, once and actionably, when the preferred fonts are unavailable.
 
     The font stack is PyMORGAN's (``Helvetica, TeX Gyre Heros, Arial``, from its
-    ``.mplstyle``) and PyRATE applies it unchanged. What PyRATE does *not*
+    ``.mplstyle``) and PyRATE-TA applies it unchanged. What PyRATE-TA does *not*
     inherit is the installation: fonts are registered with the Matplotlib of one
-    environment, so a PyRATE virtual environment that has never run the
+    environment, so a PyRATE-TA virtual environment that has never run the
     installer falls back silently to DejaVu Sans -- which is why a figure can
     come out looking unlike PyMORGAN's while both claim the same style.
 
@@ -73,7 +73,7 @@ def _report_missing_fonts() -> list[str]:
         logger.warning(
             "None of the preferred fonts %s are available to Matplotlib, so plots fall "
             "back to DejaVu Sans. Run 'uv run pymorgan-install-fonts' in this environment "
-            "to install them (PyRATE uses PyMORGAN's fonts and ships no second installer).",
+            "to install them (PyRATE-TA uses PyMORGAN's fonts and ships no second installer).",
             list(PREFERRED_FONTS),
         )
     else:
@@ -93,7 +93,7 @@ def main(argv: list[str] | None = None) -> int:
         try:
             import ctypes
 
-            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("PyRATE.GUI")
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("PyRATE-TA.GUI")
         except Exception:
             logger.debug("Could not set the Windows AppUserModelID.", exc_info=True)
 
@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     if icon.exists():
         app.setWindowIcon(QIcon(str(icon)))
 
-    # PyRATE keeps its own settings.toml (analysis + interface); the theme
+    # PyRATE-TA keeps its own settings.toml (analysis + interface); the theme
     # *resolution* is PyMORGAN's, so both applications look identical.
     from pymorgan.gui.app import _resolve_theme
 
@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     window = MainWindow()
     window.show()
 
-    logger.info("PyRATE GUI loaded in %.2f s", time.perf_counter() - t_start)
+    logger.info("PyRATE-TA GUI loaded in %.2f s", time.perf_counter() - t_start)
     return app.exec()
 
 

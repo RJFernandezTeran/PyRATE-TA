@@ -146,7 +146,7 @@ class DataTabMixin:
 
         Delegates to :meth:`pymorgan.Dataset1D.noise_array`, which takes it
         from ``Zstdv`` when a sibling ``.pdatn`` file was loaded and otherwise
-        from the spread over single scans. PyRATE does not compute noise itself.
+        from the spread over single scans. PyRATE-TA does not compute noise itself.
         """
         if self.dataset is None:
             return None

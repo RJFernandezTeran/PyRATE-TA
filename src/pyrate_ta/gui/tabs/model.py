@@ -57,7 +57,7 @@ class ModelTabMixin:
     #                            Construction                            #
     # ------------------------------------------------------------------ #
     def _init_model_controls(self):
-        """Seed both tables from the PyRATE settings defaults."""
+        """Seed both tables from the PyRATE-TA settings defaults."""
         s = pr.get_settings()
         self._set_component_count(int(s.n_components))
         self._init_irf_table()

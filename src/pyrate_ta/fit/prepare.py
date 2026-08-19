@@ -3,7 +3,7 @@
 This is the **only** PyMORGAN-aware module in the fitting stack: everything
 downstream takes plain arrays. It slices one detector, applies the delay and
 probe restrictions, clips the early delays if asked, and fetches the per-point
-noise from PyMORGAN (:meth:`pymorgan.Dataset1D.noise_array`) -- PyRATE never
+noise from PyMORGAN (:meth:`pymorgan.Dataset1D.noise_array`) -- PyRATE-TA never
 estimates noise itself.
 
 Restricting the ranges changes what the fit saw, so every choice made here is

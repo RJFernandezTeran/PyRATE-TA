@@ -174,8 +174,8 @@ class KineticFit:
         """The plain-array tuple ``plot_species_spectra`` expects.
 
         Returns ``(Sfit, Taus, TauErr, isFixTau, modelType)``. Keeping this
-        adapter on the PyRATE side is what lets PyMORGAN render a PyRATE fit
-        without ever importing ``pyrate``.
+        adapter on the PyRATE-TA side is what lets PyMORGAN render a PyRATE-TA fit
+        without ever importing ``pyrate_ta``.
 
         Only the kinetic columns are handed over: an artefact column has no
         lifetime, and passing it would label it with someone else's.

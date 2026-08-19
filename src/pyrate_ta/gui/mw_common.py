@@ -2,8 +2,8 @@
 
 Deliberately thin: everything PyMORGAN already defines (the data-type display
 names, the combo helpers, the log-safe limit setter) is imported from
-:mod:`pymorgan.gui.mw_common` and re-exported here, so PyRATE has one import
-site without owning a second copy. Only the PyRATE-specific pieces -- which
+:mod:`pymorgan.gui.mw_common` and re-exported here, so PyRATE-TA has one import
+site without owning a second copy. Only the PyRATE-TA-specific pieces -- which
 widget groups are gated on a loaded dataset, the render debounce, the button
 palette -- live here.
 """

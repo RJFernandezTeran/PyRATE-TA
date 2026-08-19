@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>PyRATE - Spectrokinetic Fitting</string>
+   <string>PyRATE-TA - Spectrokinetic Fitting</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="centralLayout">
@@ -2065,12 +2065,12 @@
     <string>&amp;Settings...</string>
    </property>
    <property name="toolTip">
-    <string>Analysis settings (PyRATE) and aesthetics (PyMORGAN), in one dialog</string>
+    <string>Analysis settings (PyRATE-TA) and aesthetics (PyMORGAN), in one dialog</string>
    </property>
   </action>
   <action name="actionAbout">
    <property name="text">
-    <string>&amp;About PyRATE</string>
+    <string>&amp;About PyRATE-TA</string>
    </property>
   </action>
  </widget>

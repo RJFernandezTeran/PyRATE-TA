@@ -101,7 +101,7 @@ def test_summary_reads_like_a_live_result(tmp_path):
 
 
 def test_a_newer_format_is_refused(tmp_path):
-    """Reading a file from a future PyRATE would silently mis-interpret it."""
+    """Reading a file from a future PyRATE-TA would silently mis-interpret it."""
     path = pr.save_fit(tmp_path / "demo", _fit())
     with np.load(path, allow_pickle=False) as data:
         arrays = {k: data[k] for k in data.files if k != "meta"}
@@ -110,14 +110,14 @@ def test_a_newer_format_is_refused(tmp_path):
     with path.open("wb") as handle:
         np.savez_compressed(handle, meta=json.dumps(meta), **arrays)
 
-    with pytest.raises(ValueError, match="newer PyRATE"):
+    with pytest.raises(ValueError, match="newer PyRATE-TA"):
         pr.load_fit(path)
 
 
 def test_a_file_that_is_not_a_session_is_refused(tmp_path):
     path = tmp_path / "not_a_session.npz"
     np.savez(path, something=np.arange(3))
-    with pytest.raises(ValueError, match="not a PyRATE fit session"):
+    with pytest.raises(ValueError, match="not a PyRATE-TA fit session"):
         pr.load_fit(path)
 
 
