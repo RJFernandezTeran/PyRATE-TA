@@ -4,14 +4,14 @@ Two mechanisms, both going through the ``pyrate`` logger rather than ``print``
 (the console entry points are the exception; see :func:`print_citations`):
 
 * :func:`citation_notice` -- the start-up banner listing what to cite when
-  results obtained with PyRATE are published.
+  results obtained with PyRATE-TA are published.
 * :func:`cite` -- the per-method citation a routine records when it finishes,
   so the formalism actually used is traceable. It goes to the *debug* log: the
   start-up banner already says what to cite, and a reference printed in the
   middle of every fit only buries the result. Each key is recorded once per
   session in any case.
 
-Every entry was checked against Crossref. The forthcoming PyRATE/PyMORGAN paper
+Every entry was checked against Crossref. The forthcoming PyRATE-TA / PyMORGAN paper
 is listed with its DOI missing on purpose -- an invented DOI is worse than a
 visible gap -- and must be completed when it appears.
 """
@@ -38,7 +38,7 @@ class Reference:
     doi : str or None
         DOI, or ``None`` while a paper is still unpublished.
     what : str
-        What in PyRATE this reference covers, so a log line explains itself.
+        What in PyRATE-TA this reference covers, so a log line explains itself.
     """
 
     key: str
@@ -70,7 +70,7 @@ REFERENCES: dict[str, Reference] = {
             "J. Chem. Educ. 2022, 99, 2327-2337."
         ),
         doi="10.1021/acs.jchemed.2c00104",
-        what="the analysis framework PyRATE implements",
+        what="the analysis framework PyRATE-TA implements",
     ),
     "vanstokkum2004": Reference(
         key="vanstokkum2004",
@@ -174,7 +174,7 @@ def citation_text(keys: tuple[str, ...] | list[str] | None = None) -> str:
         else list(_STARTUP_KEYS) + [k for k in REFERENCES if k not in _STARTUP_KEYS]
     )
     lines = [
-        f"PyRATE v{__version__} - if you publish results obtained with this software,",
+        f"PyRATE-TA v{__version__} - if you publish results obtained with this software,",
         "please cite:",
     ]
     lines += [f"  [{i + 1}] {get_reference(k)}" for i, k in enumerate(order)]

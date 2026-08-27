@@ -15,7 +15,7 @@ Delegate:
 
 Aesthetics come from PyMORGAN too: call ``pymorgan.apply_style()`` and read
 ``pymorgan.get_settings()`` for label style, colourmap and figure sizes, so a
-PyRATE figure sits beside a PyMORGAN one without looking foreign.
+PyRATE-TA figure sits beside a PyMORGAN one without looking foreign.
 
 Contents
 --------

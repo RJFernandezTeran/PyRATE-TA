@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None) -> int:
         pr.load_settings(cfg)
 
     dlg = QDialog()
-    dlg.setWindowTitle("PyRATE Settings Editor")
+    dlg.setWindowTitle("PyRATE-TA Settings Editor")
     dlg.resize(600, 500)
     icon = Path(__file__).with_name("icons") / "pirate_ship.png"
     if icon.exists():

@@ -194,7 +194,7 @@ class FitTabMixin:
                 progress = monitor
             else:
                 progress = QProgressDialog("Fitting...", "Cancel", 0, 0, self)
-                progress.setWindowTitle("PyRATE")
+                progress.setWindowTitle("PyRATE-TA")
                 progress.setWindowModality(Qt.WindowModality.WindowModal)
                 progress.setMinimumDuration(400)
                 progress.setAutoClose(True)
@@ -318,7 +318,7 @@ class FitTabMixin:
         path = str(default)
         if ask:
             path, _ = QFileDialog.getSaveFileName(
-                self, "Save fit session", path, "PyRATE fit session (*.prfit)"
+                self, "Save fit session", path, "PyRATE-TA fit session (*.prfit)"
             )
             if not path:
                 return
@@ -343,7 +343,7 @@ class FitTabMixin:
             self,
             "Open fit session",
             start,
-            "PyRATE fit session (*.prfit);;All files (*)",
+            "PyRATE-TA fit session (*.prfit);;All files (*)",
         )
         if not path:
             return
@@ -417,10 +417,10 @@ class FitTabMixin:
 
     @staticmethod
     def _quoting_kwargs() -> dict:
-        """How lifetimes are quoted in a legend, from the PyRATE settings.
+        """How lifetimes are quoted in a legend, from the PyRATE-TA settings.
 
         ``plot_species_spectra`` builds its own labels, so the policy has to be
-        handed to it per call -- PyMORGAN cannot read PyRATE's settings.
+        handed to it per call -- PyMORGAN cannot read PyRATE-TA's settings.
         """
         s = pr.get_settings()
         return {

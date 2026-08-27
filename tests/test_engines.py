@@ -569,7 +569,7 @@ def _fitted():
 
 
 def test_concentration_profiles_use_the_pymorgan_delay_axis():
-    """The populations are PyRATE's own view; the delay axis is not.
+    """The populations are PyRATE-TA's own view; the delay axis is not.
 
     Anything else would put a second time-axis convention beside the one the
     contour and the kinetic traces already use.
@@ -811,7 +811,7 @@ def test_scale_kwargs_carries_the_symlog_threshold():
 
 
 def test_rotated_kinetics_put_the_delays_on_the_vertical_axis():
-    """PyMORGAN draws the rotated panel; PyRATE only asks for it.
+    """PyMORGAN draws the rotated panel; PyRATE-TA only asks for it.
 
     The orientation is what allows the delay axis to be shared with the contour
     beside it, so the two panels line up.

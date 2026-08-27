@@ -5,10 +5,10 @@ edits are written back to the active settings through
 :func:`pyrate.update_settings` and a ``changed`` signal is emitted so the caller
 can re-render.
 
-Only PyRATE's *analysis-only* settings appear here — solver tolerances, default
+Only PyRATE-TA's *analysis-only* settings appear here — solver tolerances, default
 component counts, IRF handling. Everything presentational (colourmaps, label
 style, figure sizes) belongs to :class:`pymorgan.Settings` and is edited with
-``pymorgan-settings``; PyRATE deliberately does not start a second aesthetics system.
+``pymorgan-settings``; PyRATE-TA deliberately does not start a second aesthetics system.
 
 """
 
