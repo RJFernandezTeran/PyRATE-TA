@@ -45,7 +45,7 @@ _ICON_DIR = Path(__file__).with_name("icons")
 
 
 class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWindow):
-    """PyRATE main window."""
+    """PyRATE-TA main window."""
 
     def __init__(self):
         super().__init__()
@@ -56,7 +56,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             self._resize_within_screen(settings.window_width, settings.window_height)
         else:
             self._resize_within_screen(self._default_size.width(), self._default_size.height())
-        self.setWindowTitle(f"PyRATE v{pr.__version__}")
+        self.setWindowTitle(f"PyRATE-TA v{pr.__version__}")
         icon = _ICON_DIR / "pirate_ship.png"
         if icon.exists():
             self.setWindowIcon(QIcon(str(icon)))
@@ -378,7 +378,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
     def open_settings_dialog(self):
         """Edit the settings live, in one dialog with two halves.
 
-        PyRATE owns the analysis settings and PyMORGAN the presentation ones,
+        PyRATE-TA owns the analysis settings and PyMORGAN the presentation ones,
         so both panels are shown here rather than either package
 
         growing a copy of the other's. Edits apply immediately and the plots
@@ -391,13 +391,13 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         from .settings_panel import SettingsPanel
 
         dialog = QDialog(self)
-        dialog.setWindowTitle("PyRATE settings")
+        dialog.setWindowTitle("PyRATE-TA settings")
         layout = QVBoxLayout(dialog)
 
         tabs = QTabWidget(dialog)
         analysis = SettingsPanel(dialog)
         analysis.changed.connect(self._on_settings_changed)
-        tabs.addTab(analysis, "Analysis (PyRATE)")
+        tabs.addTab(analysis, "Analysis (PyRATE-TA)")
 
         aesthetics = None
         try:
@@ -430,9 +430,9 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         try:
             target = settings_path()
             pr.save_settings(target)
-            written.append(f"PyRATE -> {target}")
+            written.append(f"PyRATE-TA -> {target}")
         except Exception as exc:
-            QMessageBox.warning(parent, "Save failed", f"PyRATE settings: {exc}")
+            QMessageBox.warning(parent, "Save failed", f"PyRATE-TA settings: {exc}")
         if with_aesthetics:
             try:
                 target = pymorgan_settings_path() or pm.settings_path()
@@ -452,11 +452,32 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             self.render_all()
 
     def _about(self):
-        QMessageBox.about(
-            self,
-            "About PyRATE",
-            f"<b>PyRATE</b> v{pr.__version__}<br>"
-            "Rate Analysis & Target-model Engine for Transient Absorption.<br><br>"
-            f"Loading, processing and plotting by PyMORGAN v{pm.__version__}.<br>"
-            f"{pr.__author__}",
+        from .about_dialog import ModernAboutDialog
+
+        icon = str(_ICON_DIR / "pirate_ship.png")
+        manual_pdf = Path(__file__).resolve().parents[3] / "docs" / "main.pdf"
+        dlg = ModernAboutDialog(
+            parent=self,
+            title="About PyRATE-TA",
+            app_name="PyRATE-TA",
+            version=pr.__version__,
+            subtitle="Rate Analysis & Target-model Engine for Transient Absorption",
+            description=(
+                f"Interactive kinetic analysis, global and target fitting with rate-matrix models, "
+                f"lifetime density analysis (LDA), and species-associated spectra (DAS / EAS / SAS).<br><br>"
+                f"Loading, data processing and plotting powered by <b>PyMORGAN</b> v{pm.__version__}."
+            ),
+            author=pr.__author__,
+            department="Department of Physical Chemistry",
+            institution="University of Geneva, Switzerland",
+            contact_email="Ricardo.FernandezTeran@unige.ch",
+            website_url="https://www.unige.ch/sciences/chifi/fernandez-teran/",
+            github_url="https://github.com/RJFernandezTeran/PyRATE-TA",
+            license_name="GNU AGPLv3 License",
+            banner_path=icon if os.path.exists(icon) else None,
+            icon_path=icon if os.path.exists(icon) else None,
+            manual_pdf_path=str(manual_pdf) if manual_pdf.exists() else "docs/main.pdf",
+            ai_credit="Developed with AI assistance from <b>Google Antigravity</b>.",
         )
+        dlg.exec()
+

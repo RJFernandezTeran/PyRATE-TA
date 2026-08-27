@@ -90,7 +90,7 @@ def plot_matrix(t, probe, M, ax=None, *, title=None, dataset=None, **contour_kwa
 
     # The style (and therefore the font stack) is PyMORGAN's, applied here so a
     # figure looks the same whether it was opened from the GUI -- which applies
-    # it too -- or from a plain script. Every PyRATE plotter does this.
+    # it too -- or from a plain script. Every PyRATE-TA plotter does this.
     pm.apply_style()
     if ax is None:
         _, ax = plt.subplots()

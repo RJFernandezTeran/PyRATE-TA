@@ -1,4 +1,4 @@
-# Form implementation generated from reading ui file 'src\pyrate_ta\gui\main_window.ui'
+# Form implementation generated from reading ui file 'c:\Users\ricar\Documents\GitHub\PyRATE-TA\src\pyrate_ta\gui\main_window.ui'
 #
 # Created by: PyQt6 UI code generator 6.11.0
 #
@@ -749,7 +749,7 @@ class Ui_MainWindow(object):
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "PyRATE - Spectrokinetic Fitting"))
+        MainWindow.setWindowTitle(_translate("MainWindow", "PyRATE-TA - Spectrokinetic Fitting"))
         self.leftScroll.setToolTip(_translate("MainWindow", "Scrolls when the window is shorter than the controls need, so the window fits on a small screen"))
         self.DataGroup.setTitle(_translate("MainWindow", "Data"))
         self.LoadPDATButton.setToolTip(_translate("MainWindow", "Load a 1-D transient dataset through PyMORGAN\'s loader registry"))
@@ -947,7 +947,7 @@ class Ui_MainWindow(object):
         self.actionQuit.setText(_translate("MainWindow", "&Quit"))
         self.actionRestoreSize.setText(_translate("MainWindow", "&Restore default window size"))
         self.actionSettings.setText(_translate("MainWindow", "&Settings..."))
-        self.actionSettings.setToolTip(_translate("MainWindow", "Analysis settings (PyRATE) and aesthetics (PyMORGAN), in one dialog"))
-        self.actionAbout.setText(_translate("MainWindow", "&About PyRATE"))
+        self.actionSettings.setToolTip(_translate("MainWindow", "Analysis settings (PyRATE-TA) and aesthetics (PyMORGAN), in one dialog"))
+        self.actionAbout.setText(_translate("MainWindow", "&About PyRATE-TA"))
 from pymorgan.gui.widgetplot import WidgetPlot
 from pymorgan.gui.widgets import LEDIndicator, SciDoubleSpinBox

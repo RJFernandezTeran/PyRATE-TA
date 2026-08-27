@@ -18,8 +18,8 @@ The PyMORGAN adapter
 Result objects expose ``as_species_args()``, returning the plain
 ``(Sfit, Taus, TauErr, isFixTau, modelType)`` tuple that
 ``pymorgan.oneD.plot.plot_species_spectra`` expects. Keeping the adapter on this
-side is what lets PyMORGAN render PyRATE output without ever importing
-``pyrate``.
+side is what lets PyMORGAN render PyRATE-TA output without ever importing
+``pyrate_ta``.
 
 Contents
 --------

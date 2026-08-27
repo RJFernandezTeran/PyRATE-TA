@@ -43,7 +43,7 @@ class ParameterMonitor(QDialog):
 
     def __init__(self, parent, names, *, fixed=None, every: int = 1, scale: str = "symlog"):
         super().__init__(parent)
-        self.setWindowTitle("PyRATE - Fit Monitor")
+        self.setWindowTitle("PyRATE-TA - Fit Monitor")
         self.setModal(False)
         self._canceled = False
         self._names = [str(n) for n in names]

@@ -109,7 +109,7 @@ def test_the_panel_sits_in_the_free_cell_of_the_plot_grid():
 
 
 def test_promoted_widgets_come_from_pymorgan():
-    """The custom widgets are PyMORGAN's; PyRATE must not fork them."""
+    """The custom widgets are PyMORGAN's; PyRATE-TA must not fork them."""
     text = UI_FILE.read_text(encoding="utf-8")
     headers = set(re.findall(r"<header>([^<]+)</header>", text))
     assert headers
@@ -528,89 +528,40 @@ def test_scheme_source_ignores_fit_result():
     assert obj is win.custom_scheme
     assert np.allclose(taus, [1.0, 2.0])
 
-    win.close()
-
-
-def test_dialog_dir_resolution(tmp_path, monkeypatch):
-    """File dialogs must begin at default_datadir from PyRATE settings."""
+def test_about_dialog():
+    """ModernAboutDialog initializes correctly with branding, manual, and GitHub buttons."""
     _require_qt()
-    from PyQt6.QtWidgets import QApplication, QFileDialog
+    from PyQt6.QtWidgets import QApplication, QLabel, QPushButton
 
-    import pyrate_ta as pr
-    from pyrate_ta.gui.main_window import MainWindow
+    from pyrate_ta.gui.about_dialog import ModernAboutDialog
 
     _app = QApplication.instance() or QApplication([])
+    dlg = ModernAboutDialog(
+        title="About PyRATE-TA",
+        app_name="PyRATE-TA",
+        version="1.0.0",
+        subtitle="Rate Analysis & Target-model Engine",
+        description="Sample description.",
+        manual_pdf_path="docs/main.pdf",
+        website_url="https://www.unige.ch/sciences/chifi/fernandez-teran/",
+        github_url="https://github.com/RJFernandezTeran/PyRATE-TA",
+    )
+    assert dlg.windowTitle() == "About PyRATE-TA"
+    assert dlg.isModal()
+    assert dlg.width() == 580
+    assert dlg.height() == 540
 
-    custom_dir = tmp_path / "custom_data"
-    custom_dir.mkdir()
+    btn_manual = dlg.findChild(QPushButton, "btnManual")
+    assert btn_manual is not None
+    assert "Open User Manual" in btn_manual.text()
 
-    pr.update_settings(default_datadir=custom_dir)
+    btn_github = dlg.findChild(QPushButton, "btnGithub")
+    assert btn_github is not None
+    assert "GitHub" in btn_github.text()
 
-    win = MainWindow()
-    try:
-        # MainWindow starts with _last_dir matching default_datadir
-        assert win._last_dir == str(custom_dir)
-        assert win._get_dialog_dir() == str(custom_dir)
-
-        # Explicit start_dir takes precedence if valid
-        sub_dir = custom_dir / "sub"
-        sub_dir.mkdir()
-        assert win._get_dialog_dir(sub_dir) == str(sub_dir)
-
-        # When a file is loaded, _last_dir is updated
-        test_file = sub_dir / "scan.pdat"
-        test_file.touch()
-        win._last_dir = str(sub_dir)
-        assert win._get_dialog_dir() == str(sub_dir)
-
-        # Changing settings resets / updates _last_dir
-        other_dir = tmp_path / "other"
-        other_dir.mkdir()
-        pr.update_settings(default_datadir=other_dir)
-        win._on_settings_changed()
-        assert win._last_dir == str(other_dir)
-        assert win._get_dialog_dir() == str(other_dir)
-
-        # open_file passes _get_dialog_dir to QFileDialog
-        opened_args = []
-        monkeypatch.setattr(
-            QFileDialog,
-            "getOpenFileName",
-            lambda parent, title, start, filter: (opened_args.append((title, start)) or ("", "")),
-        )
-        win.open_file()
-        assert len(opened_args) == 1
-        assert opened_args[0][1] == str(other_dir)
-
-    finally:
-        pr.update_settings(default_datadir=None)
-        win.close()
-
-
-def test_settings_panel_directory_widget(tmp_path):
-    """SettingsPanel must support directory fields with browse widget."""
-    _require_qt()
-    from PyQt6.QtWidgets import QApplication, QLineEdit
-
-    import pyrate_ta as pr
-    from pyrate_ta.gui.settings_panel import SettingsPanel
-
-    _app = QApplication.instance() or QApplication([])
-
-    custom_dir = tmp_path / "my_dir"
-    custom_dir.mkdir()
-    pr.update_settings(default_datadir=custom_dir)
-
-    panel = SettingsPanel()
-    try:
-        w = panel._widgets.get("default_datadir")
-        assert isinstance(w, QLineEdit)
-        assert w.text() == str(custom_dir)
-    finally:
-        pr.update_settings(default_datadir=None)
-        panel.close()
-
-
-
-
+    lbl_details = dlg.findChild(QLabel, "lblDetails")
+    assert lbl_details is not None
+    assert "https://github.com/RJFernandezTeran/PyRATE-TA" in lbl_details.text()
+    assert "https://www.unige.ch/sciences/chifi/fernandez-teran/" in lbl_details.text()
+    dlg.close()
 

@@ -56,7 +56,7 @@ def plot_kinetics_with_residuals(
     hspace : float, optional
         Vertical spacing between trace panel and residual panel. Defaults to ``Settings.residuals_hspace``.
     settings : Settings, optional
-        PyRATE settings object.
+        PyRATE-TA settings object.
 
     Returns
     -------
@@ -269,7 +269,7 @@ def plot_spectra_with_residuals(
     hspace : float, optional
         Vertical spacing between trace panel and residual panel. Defaults to ``Settings.residuals_hspace``.
     settings : Settings, optional
-        PyRATE settings object.
+        PyRATE-TA settings object.
 
     Returns
     -------
