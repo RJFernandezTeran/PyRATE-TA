@@ -286,11 +286,12 @@ class LDATabMixin:
             )
             return
 
-        default_dir = getattr(self, "_rootdir_text", lambda: "")() or ""
+        default_dir = self._get_dialog_dir()
         default_name = "dataset_LDA_MAP.pdat"
         curr_path = getattr(self, "_current_path", None)
         if curr_path:
             default_name = Path(curr_path).stem + "_LDA_MAP.pdat"
+            default_dir = str(Path(curr_path).parent)
 
         default_path = os.path.join(default_dir, default_name)
 
@@ -302,6 +303,7 @@ class LDATabMixin:
         )
         if not path:
             return
+        self._last_dir = str(Path(path).parent)
 
         try:
             saved_path = res.to_pdat(path)

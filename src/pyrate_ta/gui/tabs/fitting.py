@@ -314,7 +314,7 @@ class FitTabMixin:
         """Write the current fit, with its reproducibility payload, to disk."""
         if self.fit_result is None:
             return
-        default = pr.io.default_session_path(self.fit_result, self._last_dir)
+        default = pr.io.default_session_path(self.fit_result, self._get_dialog_dir())
         path = str(default)
         if ask:
             path, _ = QFileDialog.getSaveFileName(
@@ -328,6 +328,7 @@ class FitTabMixin:
             logger.debug("saving the fit session failed", exc_info=True)
             QMessageBox.warning(self, "Could not save", str(exc))
             return
+        self._last_dir = str(Path(path).parent)
         self.statusBar().showMessage(f"Fit session saved to {written.name}", 6000)
 
     def load_fit_session(self):
@@ -337,14 +338,16 @@ class FitTabMixin:
         result: it has no dataset behind it, and pretending otherwise would
         invite a "refit" of something that cannot be refitted.
         """
+        start = self._get_dialog_dir()
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Open fit session",
-            str(self._last_dir or ""),
+            start,
             "PyRATE fit session (*.prfit);;All files (*)",
         )
         if not path:
             return
+        self._last_dir = str(Path(path).parent)
         try:
             loaded = pr.load_fit(path)
         except Exception as exc:
