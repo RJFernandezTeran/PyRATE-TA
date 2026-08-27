@@ -531,5 +531,86 @@ def test_scheme_source_ignores_fit_result():
     win.close()
 
 
+def test_dialog_dir_resolution(tmp_path, monkeypatch):
+    """File dialogs must begin at default_datadir from PyRATE settings."""
+    _require_qt()
+    from PyQt6.QtWidgets import QApplication, QFileDialog
+
+    import pyrate_ta as pr
+    from pyrate_ta.gui.main_window import MainWindow
+
+    _app = QApplication.instance() or QApplication([])
+
+    custom_dir = tmp_path / "custom_data"
+    custom_dir.mkdir()
+
+    pr.update_settings(default_datadir=custom_dir)
+
+    win = MainWindow()
+    try:
+        # MainWindow starts with _last_dir matching default_datadir
+        assert win._last_dir == str(custom_dir)
+        assert win._get_dialog_dir() == str(custom_dir)
+
+        # Explicit start_dir takes precedence if valid
+        sub_dir = custom_dir / "sub"
+        sub_dir.mkdir()
+        assert win._get_dialog_dir(sub_dir) == str(sub_dir)
+
+        # When a file is loaded, _last_dir is updated
+        test_file = sub_dir / "scan.pdat"
+        test_file.touch()
+        win._last_dir = str(sub_dir)
+        assert win._get_dialog_dir() == str(sub_dir)
+
+        # Changing settings resets / updates _last_dir
+        other_dir = tmp_path / "other"
+        other_dir.mkdir()
+        pr.update_settings(default_datadir=other_dir)
+        win._on_settings_changed()
+        assert win._last_dir == str(other_dir)
+        assert win._get_dialog_dir() == str(other_dir)
+
+        # open_file passes _get_dialog_dir to QFileDialog
+        opened_args = []
+        monkeypatch.setattr(
+            QFileDialog,
+            "getOpenFileName",
+            lambda parent, title, start, filter: (opened_args.append((title, start)) or ("", "")),
+        )
+        win.open_file()
+        assert len(opened_args) == 1
+        assert opened_args[0][1] == str(other_dir)
+
+    finally:
+        pr.update_settings(default_datadir=None)
+        win.close()
+
+
+def test_settings_panel_directory_widget(tmp_path):
+    """SettingsPanel must support directory fields with browse widget."""
+    _require_qt()
+    from PyQt6.QtWidgets import QApplication, QLineEdit
+
+    import pyrate_ta as pr
+    from pyrate_ta.gui.settings_panel import SettingsPanel
+
+    _app = QApplication.instance() or QApplication([])
+
+    custom_dir = tmp_path / "my_dir"
+    custom_dir.mkdir()
+    pr.update_settings(default_datadir=custom_dir)
+
+    panel = SettingsPanel()
+    try:
+        w = panel._widgets.get("default_datadir")
+        assert isinstance(w, QLineEdit)
+        assert w.text() == str(custom_dir)
+    finally:
+        pr.update_settings(default_datadir=None)
+        panel.close()
+
+
+
 
 

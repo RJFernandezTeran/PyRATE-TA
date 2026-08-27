@@ -49,7 +49,7 @@ class DataTabMixin:
     # ------------------------------------------------------------------ #
     def open_file(self):
         """Ask for a dataset and load it (Load Data button / File -> Open)."""
-        start = str(self._last_dir or Path.home())
+        start = self._get_dialog_dir()
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Load transient dataset",
@@ -86,6 +86,7 @@ class DataTabMixin:
             return
 
         self._current_path = path
+        self._last_dir = str(Path(path).parent)
         self.DataLoadedLamp.set_state("loaded")
         logger.info("Loaded %s - %r", Path(path).name, self.dataset)
         self.statusBar().showMessage(f"Loaded {Path(path).name} - {self.dataset!r}")

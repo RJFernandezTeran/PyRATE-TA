@@ -72,7 +72,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._cut = None  # (probe, delay) chosen with the crosshair
         self._axes = {}
         self._current_path = None
-        self._last_dir = None
+        self._last_dir = str(settings.default_datadir) if settings.default_datadir else None
         self.plot_controls = None
 
         self._init_fit_methods()
@@ -245,6 +245,62 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect("actionSettings", "triggered", self.open_settings_dialog)
         self._connect("actionAbout", "triggered", self._about)
 
+    def _get_dialog_dir(self, start_dir: str | Path | None = None) -> str:
+        """Resolve the directory for file dialogs: start_dir -> _last_dir -> default_datadir -> home.
+
+        Resolution order:
+        1. Explicitly passed ``start_dir`` if valid.
+        2. ``self._last_dir`` (the last opened/saved directory or default_datadir at launch) if valid.
+        3. PyRATE's ``default_datadir`` setting (from settings.toml) if set and valid.
+        4. PyMORGAN's ``default_datadir`` setting as fallback.
+        5. User's home directory.
+        """
+        if start_dir:
+            try:
+                p = Path(start_dir).expanduser()
+                if p.is_dir():
+                    return str(p)
+                if p.parent.is_dir():
+                    return str(p.parent)
+            except Exception:
+                pass
+
+        if self._last_dir:
+            try:
+                p = Path(self._last_dir).expanduser()
+                if p.is_dir():
+                    return str(p)
+                if p.parent.is_dir():
+                    return str(p.parent)
+            except Exception:
+                pass
+
+        datadir = getattr(pr.get_settings(), "default_datadir", None)
+        if datadir:
+            try:
+                p = Path(datadir).expanduser()
+                if p.is_dir():
+                    return str(p)
+                if p.parent.is_dir():
+                    return str(p.parent)
+                return str(p)
+            except Exception:
+                return str(datadir)
+
+        try:
+            pm_datadir = getattr(pm.get_settings(), "default_datadir", None)
+            if pm_datadir:
+                p = Path(pm_datadir).expanduser()
+                if p.is_dir():
+                    return str(p)
+                if p.parent.is_dir():
+                    return str(p.parent)
+                return str(p)
+        except Exception:
+            pass
+
+        return str(Path.home())
+
     def load_abs_spectrum(self):
         """Load a text-based steady-state absorption spectrum for GSB recovery.
 
@@ -260,15 +316,16 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
                                 "can be mapped onto its probe axis.")
             return
 
-        default_dir = getattr(self, "_rootdir_text", lambda: "")() or ""
+        start = self._get_dialog_dir()
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Load Absorption Spectrum",
-            default_dir,
+            start,
             "Text files (*.txt *.dat *.csv *.asc);;All files (*)",
         )
         if not path:
             return
+        self._last_dir = str(Path(path).parent)
 
         try:
             import numpy as np
@@ -387,7 +444,10 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             self.statusBar().showMessage("Settings saved: " + "; ".join(written), 6000)
 
     def _on_settings_changed(self):
-        """Re-render with the new settings, so an edit is judged on the plots."""
+        """Re-render with the new settings and sync directory defaults."""
+        settings = pr.get_settings()
+        if settings.default_datadir:
+            self._last_dir = str(settings.default_datadir)
         if self.dataset is not None:
             self.render_all()
 

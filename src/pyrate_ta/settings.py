@@ -535,6 +535,12 @@ _SPEC_OVERRIDES: dict[str, dict[str, Any]] = {
     "table_decimals": {"min": 1, "max": 12},
     "window_width": {"min": 400, "max": 10000},
     "window_height": {"min": 300, "max": 10000},
+    "default_datadir": {
+        "label": "Default data directory",
+        "kind": "directory",
+        "tab": "paths",
+        "tooltip": "Directory the file dialog opens in; empty means the home folder.",
+    },
 }
 
 
@@ -566,6 +572,8 @@ def _kind_of(annotation: Any) -> dict[str, Any]:
         return {"kind": "int", "min": 0, "max": 10**6}
     if "float" in text:
         return {"kind": "float"}
+    if "Path" in text:
+        return {"kind": "directory"}
     return {"kind": "text"}
 
 

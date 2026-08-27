@@ -18,12 +18,17 @@ import os
 
 os.environ.setdefault("QT_API", "pyqt6")
 
-from PyQt6.QtCore import pyqtSignal
+from pathlib import Path
+
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
+    QFileDialog,
     QFormLayout,
+    QHBoxLayout,
     QLineEdit,
+    QPushButton,
     QScrollArea,
     QSpinBox,
     QTabWidget,
@@ -79,7 +84,8 @@ class SettingsPanel(QTabWidget):
             widget = self._build_widget(name, spec, getattr(settings, name, None))
             if widget is None:
                 continue
-            self._widgets[name] = widget
+            if name not in self._widgets:
+                self._widgets[name] = widget
             form = self._form_for(str(spec.get("tab", "fit")))
             if spec.get("tooltip"):
                 widget.setToolTip(str(spec["tooltip"]))
@@ -122,6 +128,29 @@ class SettingsPanel(QTabWidget):
             w.setValue(int(value or 0))
             w.valueChanged.connect(lambda v, n=name: self._apply(n, v))
             return w
+        if kind in ("directory", "path"):
+            container = QWidget()
+            layout = QHBoxLayout(container)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(4)
+            line_edit = QLineEdit(_as_text(value))
+            line_edit.setPlaceholderText("Leave empty for home folder")
+            line_edit.editingFinished.connect(lambda n=name, e=line_edit: self._apply(n, e.text()))
+            btn = QPushButton("Browse…")
+            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
+            def _choose_dir(n=name, le=line_edit, label=spec.get("label", name)):
+                start = le.text().strip() or str(Path.home())
+                chosen = QFileDialog.getExistingDirectory(self, f"Select {label}", start)
+                if chosen:
+                    le.setText(chosen)
+                    self._apply(n, chosen)
+
+            btn.clicked.connect(_choose_dir)
+            layout.addWidget(line_edit)
+            layout.addWidget(btn)
+            self._widgets[name] = line_edit
+            return container
         if kind in ("float", "text"):
             # Floats go through a line edit: several are optional (``None``
             # means "fit it"), which a spin box cannot express, and tolerances
