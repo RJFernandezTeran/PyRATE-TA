@@ -102,22 +102,48 @@ class FitTabMixin:
         return parse_lifetime(text, field=field)
 
     def read_lifetimes(self):
-        """``(taus, fixed)`` from the component table.
+        """``(taus, (lbs, ubs), fixed)`` from the component table.
 
         ``inf`` (in any of its spellings) is a non-decaying component and is
         always fixed. A malformed entry raises with the row named, rather than
         being silently replaced by a default.
         """
         table = self.RateFitTable
-        taus, fixed = [], []
+        taus, lbs, ubs, fixed = [], [], [], []
         for row in range(table.rowCount()):
             taus.append(self._table_value(table, row, 0, field=f"lifetime in row {row + 1}"))
+
+            # Lower bound (column 1)
+            item_lb = table.item(row, 1)
+            text_lb = "" if item_lb is None else item_lb.text().strip().replace(",", ".")
+            if text_lb:
+                try:
+                    val_lb = float(text_lb)
+                    val_lb = max(1e-5, val_lb)
+                except ValueError:
+                    val_lb = 1e-5
+            else:
+                val_lb = 1e-5
+            lbs.append(val_lb)
+
+            # Upper bound (column 2)
+            item_ub = table.item(row, 2)
+            text_ub = "" if item_ub is None else item_ub.text().strip().replace(",", ".")
+            if text_ub:
+                try:
+                    val_ub = float(text_ub)
+                except ValueError:
+                    val_ub = np.inf
+            else:
+                val_ub = np.inf
+            ubs.append(val_ub)
+
             item = table.item(row, 3)
             fixed.append(bool(item is not None and item.checkState() == Qt.CheckState.Checked))
-        return taus, fixed
+        return taus, (lbs, ubs), fixed
 
     def read_irf(self):
-        """``(t0, irf_fwhm, fit_t0, fit_irf)`` from the IRF table and its switch.
+        """``(t0, irf_fwhm, (t0_bounds, irf_bounds), fit_t0, fit_irf)`` from the IRF table and its switch.
 
         Time zero is read either way: turning the Gaussian IRF off means the
         model is not convolved, not that the delay axis has no origin. Only the
@@ -134,14 +160,31 @@ class FitTabMixin:
                 logger.debug("unreadable IRF table entry in row %d", row + 1, exc_info=True)
                 return default
 
+        def bound_val(row, col, default):
+            item = table.item(row, col)
+            if item is None:
+                return default
+            try:
+                txt = item.text().strip().replace(",", ".")
+                return float(txt) if txt else default
+            except ValueError:
+                return default
+
         def is_fixed(row):
             item = table.item(row, 3)
             return bool(item is not None and item.checkState() == Qt.CheckState.Checked)
 
         t0 = value(0, 0.0)
+        t0_lb = bound_val(0, 1, -np.inf)
+        t0_ub = bound_val(0, 2, np.inf)
+
+        irf_val = value(1, 0.2)
+        irf_lb = max(1e-4, bound_val(1, 1, 0.01))
+        irf_ub = bound_val(1, 2, np.inf)
+
         if not convolve:
-            return t0, None, not is_fixed(0), False
-        return t0, value(1, 0.2), not is_fixed(0), not is_fixed(1)
+            return t0, None, (t0_lb, t0_ub), (irf_lb, irf_ub), not is_fixed(0), False
+        return t0, irf_val, (t0_lb, t0_ub), (irf_lb, irf_ub), not is_fixed(0), not is_fixed(1)
 
     def fit_method(self) -> str:
         combo = getattr(self, "FitMethod", None)
@@ -159,19 +202,31 @@ class FitTabMixin:
         if self.dataset is None:
             return
         try:
-            taus, fixed = self.read_lifetimes()
+            taus, (tau_lbs, tau_ubs), fixed = self.read_lifetimes()
         except ValueError as exc:
             QMessageBox.warning(self, "Check the lifetimes", str(exc))
             return
 
-        t0, irf_fwhm, fit_t0, fit_irf = self.read_irf()
+        t0, irf_fwhm, (t0_lb, t0_ub), (irf_lb, irf_ub), fit_t0, fit_irf = self.read_irf()
         delay_range, probe_range = self.fit_limits()
         model_type = self.model_type()
         use_weights = self.UseNoiseWeightsCheckBox.isChecked()
 
+        # Build full parameter bounds matching model parameter packing
+        lo = list(tau_lbs)
+        hi = list(tau_ubs)
+        if fit_t0:
+            lo.append(t0_lb)
+            hi.append(t0_ub)
+        if fit_irf:
+            lo.append(irf_lb)
+            hi.append(irf_ub)
+        bounds = (np.asarray(lo, dtype=float), np.asarray(hi, dtype=float))
+
         kwargs = dict(
             taus=taus,
             fixed=list(fixed),
+            bounds=bounds,
             t0=t0,
             irf_fwhm=irf_fwhm,
             coherent_artifact=self.fit_coherent_artifact(),
@@ -215,7 +270,7 @@ class FitTabMixin:
             if model_type == str(pr.ModelType.TARGET):
                 kwargs.pop("model_type", None)
                 if preview:
-                    for key in ("fixed", "fit_t0", "fit_irf", "method"):
+                    for key in ("fixed", "bounds", "fit_t0", "fit_irf", "method"):
                         kwargs.pop(key, None)
                     self.fit_result = pr.preview_global(self.dataset, scheme=scheme, **kwargs)
                 else:
@@ -223,7 +278,7 @@ class FitTabMixin:
             elif preview:
                 # Nothing is optimised: the model is evaluated at the parameters
                 # as typed and the spectra follow from them.
-                for key in ("fixed", "fit_t0", "fit_irf", "method"):
+                for key in ("fixed", "bounds", "fit_t0", "fit_irf", "method"):
                     kwargs.pop(key, None)
                 self.fit_result = pr.preview_global(self.dataset, model_type=model_type, **kwargs)
             else:
@@ -714,7 +769,8 @@ class FitTabMixin:
         A target family with no scheme yet is refused with an instruction, not a
         traceback: there is nothing to compile until a scheme exists.
         """
-        taus, _ = self.read_lifetimes()
+        lt_res = self.read_lifetimes()
+        taus = lt_res[0]
         scheme = getattr(self, "custom_scheme", None)
         if scheme is not None:
             needed = int(scheme.n_rates)

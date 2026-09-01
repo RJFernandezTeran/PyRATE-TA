@@ -190,24 +190,34 @@ def plot_concentrations(
     # Same ramp as plot_species_spectra, so species i is the same colour there.
     cm = hlp.adjust_cmap(plt.cm.turbo(np.linspace(0, 1, n_kinetic + 1)), 0.9)
 
+    model_type = getattr(fit, "model_type", "")
+    is_target = str(model_type).lower().startswith("target")
+
     for i in range(n_kinetic):
         y = C[:, i]
         if normalise:
             peak = np.nanmax(np.abs(y))
             y = y / peak if peak else y
-        ax.plot(
-            t,
-            y,
-            color=cm[i],
-            linewidth=float(getattr(s, "kinetics_line_width", 1.5)),
-            label=_trace_label(
-                names[i] if i < len(names) else f"S{i + 1}",
+
+        name_i = names[i] if i < len(names) else f"S{i + 1}"
+        if is_target:
+            label_i = name_i
+        else:
+            label_i = _trace_label(
+                name_i,
                 taus[i] if i < len(taus) else None,
                 errs[i] if i < len(errs) else None,
                 unit=unit,
                 fixed=bool(fixed[i]) if i < len(fixed) else False,
                 settings=s,
-            ),
+            )
+
+        ax.plot(
+            t,
+            y,
+            color=cm[i],
+            linewidth=float(getattr(s, "kinetics_line_width", 1.5)),
+            label=label_i,
             **kwargs,
         )
 

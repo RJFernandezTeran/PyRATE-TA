@@ -381,3 +381,32 @@ def test_multi_detector_input_is_refused():
 def test_public_api_exposes_the_fitting_entry_points():
     for name in ("run_fit", "project", "solve_amplitudes", "build_weights", "FitOutcome"):
         assert hasattr(pr, name)
+
+
+def test_default_bounds_are_strictly_positive():
+    model = make_model("Sequential", 3, fit_t0=True, fit_irf=True)
+    lo, hi = model.default_bounds(T)
+    # Lifetimes and IRF must have strictly positive lower bounds to prevent 1/0 singularities
+    assert np.all(lo[:3] > 0.0)
+    assert lo[3] == float(np.min(T))  # t0 lower bound
+    assert lo[4] > 0.0  # IRF lower bound
+
+
+def test_summary_does_not_zero_out_lifetimes_with_large_uncertainty():
+    """When a parameter has large standard error, summary must not round non-zero value to 0."""
+    from pyrate_ta.results.fits import GlobalFit
+
+    fit = GlobalFit(
+        taus=np.array([0.1456, 0.652, 3.0, 0.05, 300.0]),
+        tau_err=np.array([0.0005, 0.002, 2.0, 1e7, 200.0]),
+        is_fixed=np.zeros(5, dtype=bool),
+        S=np.zeros((10, 5)),
+        R=np.zeros((20, 10)),
+        model_type="Parallel",
+        t=np.linspace(0, 10, 20),
+        n_components=5,
+    )
+    summary = fit.summary()
+    assert "tau4 = 0 +/-" not in summary
+    assert "0.05" in summary or "0.050" in summary
+
