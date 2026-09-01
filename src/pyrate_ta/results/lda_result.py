@@ -75,12 +75,13 @@ class LDAResult:
     def citations(self) -> list[str]:
         """Return literature citations for the specific algorithms used in this LDA fit."""
         cites = [
-            "Megerle, U., Lechner, R., & Riedle, E. (2011). Lifetime density analysis of femtosecond transient absorption spectra. Phys. Chem. Chem. Phys., 13(19), 8869-8877.",
-            "Mullen, K. M., & van Stokkum, I. H. (2007). TIMP: an R package for modelling multi-way spectroscopic data. J. Stat. Softw., 18(3), 1-46.",
+            "Slavov, C., Hartmann, H., & Wachtveitl, J. (2015). Implementation and Evaluation of Data Analysis Strategies for Time-Resolved Optical Spectroscopy. Anal. Chem., 87(4), 2328-2336. DOI: 10.1021/ac504348h",
+            "Dorlhiac, G. F., Fare, C., & van Thor, J. J. (2017). PyLDM - An open source package for lifetime density analysis of time-resolved spectroscopic data. PLOS Comput. Biol., 13(5), e1005528. DOI: 10.1371/journal.pcbi.1005528",
+            "Steinbach, P. J., Ionescu, R., & Champion, P. M. (2002). Analysis of Kinetics Using a Hybrid Maximum-Entropy/Nonlinear-Least-Squares Method: Application to Protein Folding. Biophys. J., 82(4), 2244-2255. DOI: 10.1016/S0006-3495(02)75570-7",
         ]
         if self.svd_components > 0:
             cites.append(
-                "van Stokkum, I. H., Larsen, D. S., & van Grondelle, R. (2004). Global and target analysis of time-resolved spectra. Biochim. Biophys. Acta, 1657(2-3), 82-104."
+                "Henry, E. R., & Hofrichter, J. (1992). Singular value decomposition: Application to analysis of experimental data. Methods Enzymol., 210, 129-192. DOI: 10.1016/0076-6879(92)10010-B"
             )
         if self.alpha_method == "morozov":
             cites.append(
@@ -88,22 +89,19 @@ class LDAResult:
             )
         elif self.alpha_method == "gcv":
             cites.append(
-                "Golub, G. H., Heath, M., & Wahba, G. (1979). Generalized cross-validation as a method for choosing a good ridge parameter. Technometrics, 21(2), 215-223."
+                "Golub, G. H., Heath, M., & Wahba, G. (1979). Generalized cross-validation as a method for choosing a good ridge parameter. Technometrics, 21(2), 215-223. DOI: 10.1080/00401706.1979.10489751"
             )
         elif self.alpha_method == "lcurve":
             cites.append(
-                "Hansen, P. C. (1992). Analysis of discrete ill-posed problems by means of the L-curve. SIAM Review, 34(4), 561-580."
+                "Hansen, P. C. (1992). Analysis of discrete ill-posed problems by means of the L-curve. SIAM Review, 34(4), 561-580. DOI: 10.1137/1034115"
             )
         if self.non_negative:
             cites.append(
-                "Lukacs, A. et al. (2014). Maximum Entropy Method in Time-Resolved Spectroscopy. J. Phys. Chem. B, 118, 11489-11498."
-            )
-            cites.append(
-                "Lawson, C. L., & Hanson, R. J. (1995). Solving Least Squares Problems. SIAM."
+                "Lawson, C. L., & Hanson, R. J. (1995). Solving Least Squares Problems. SIAM, Philadelphia. DOI: 10.1137/1.9781611971217"
             )
         if self.n_bootstraps > 0:
             cites.append(
-                "Efron, B., & Tibshirani, R. J. (1994). An Introduction to the Bootstrap. CRC Press."
+                "Efron, B., & Tibshirani, R. J. (1994). An Introduction to the Bootstrap. Chapman & Hall/CRC. DOI: 10.1201/9780429246593"
             )
         return cites
 

@@ -102,6 +102,26 @@ REFERENCES: dict[str, Reference] = {
         doi="10.1103/PhysRevA.59.2369",
         what="the Gaussian-and-derivatives description of the coherent artefact",
     ),
+    "optimus2015": Reference(
+        key="optimus2015",
+        citation=(
+            "C. Slavov, H. Hartmann, J. Wachtveitl, "
+            "'Implementation and Evaluation of Data Analysis Strategies for Time-Resolved Optical Spectroscopy', "
+            "Anal. Chem. 2015, 87, 2328-2336."
+        ),
+        doi="10.1021/ac504348h",
+        what="Lifetime Density Analysis (LDA) and the OPTIMUS analysis framework",
+    ),
+    "hansen1992": Reference(
+        key="hansen1992",
+        citation=(
+            "P. C. Hansen, "
+            "'Analysis of discrete ill-posed problems by means of the L-curve', "
+            "SIAM Review 1992, 34, 561-580."
+        ),
+        doi="10.1137/1034115",
+        what="L-curve corner detection for automatic regularisation parameter selection in LDA",
+    ),
 }
 
 # Cited on start-up, in this order: the software paper first, then the paper
