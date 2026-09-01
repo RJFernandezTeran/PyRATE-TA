@@ -56,31 +56,64 @@ def build_penalty_matrix(M: int, penalty: str = "d2") -> np.ndarray:
 
 
 def _find_l_curve_corner(log_res: np.ndarray, log_norm: np.ndarray, alphas: np.ndarray) -> int:
-    """Find index of maximum curvature on the L-curve (log_res vs log_norm).
+    """Find index of the vertex / maximum curvature corner on the L-curve.
 
-    Uses the 2D parametric curvature formula kappa(s) = (x'(s) y''(s) - y'(s) x''(s)) / (x'(s)^2 + y'(s)^2)^(3/2)
-    parameterized by s = log10(alpha), where alpha values are log-spaced.
+    Normalizes (log_res, log_norm) to [0, 1] to ensure scale-invariance between
+    residual norm and solution norm, computes 2D parametric curvature kappa(s)
+    parameterized by s = log10(alpha), and trims boundary regions to avoid
+    spurious blowups at the over-smoothed bottom-right tail.
     """
-    s = np.log10(np.asarray(alphas, dtype=float))
+    alphas = np.asarray(alphas, dtype=float)
+    s = np.log10(alphas)
     x = np.asarray(log_res, dtype=float)
     y = np.asarray(log_norm, dtype=float)
+    N = len(s)
 
-    if len(s) < 5:
+    if N < 5:
         return int(np.argmin(x**2 + y**2))
 
-    # Compute 1st and 2nd numerical derivatives with respect to s = log10(alpha)
-    dx = np.gradient(x, s)
-    dy = np.gradient(y, s)
-    ddx = np.gradient(dx, s)
-    ddy = np.gradient(dy, s)
+    # Scale normalization to [0, 1] for balanced 2D geometry
+    x_min, x_max = float(x.min()), float(x.max())
+    y_min, y_max = float(y.min()), float(y.max())
+    if (x_max - x_min) < 1e-12 or (y_max - y_min) < 1e-12:
+        return int(N // 2)
 
-    # 2D parametric curvature: kappa = (x' * y'' - y' * x'') / (x'^2 + y'^2)^(3/2)
+    xn = (x - x_min) / (x_max - x_min)
+    yn = (y - y_min) / (y_max - y_min)
+
+    # Parametric spline smoothing on normalized coordinates
+    try:
+        from scipy.interpolate import UnivariateSpline
+
+        spl_x = UnivariateSpline(s, xn, s=0.005 * N, k=min(3, N - 1))
+        spl_y = UnivariateSpline(s, yn, s=0.005 * N, k=min(3, N - 1))
+        dx = spl_x.derivative(1)(s)
+        ddx = spl_x.derivative(2)(s)
+        dy = spl_y.derivative(1)(s)
+        ddy = spl_y.derivative(2)(s)
+    except Exception:
+        dx = np.gradient(xn, s)
+        ddx = np.gradient(dx, s)
+        dy = np.gradient(yn, s)
+        ddy = np.gradient(dy, s)
+
+    # 2D Parametric Curvature formula in normalized space
     denom = (dx**2 + dy**2) ** 1.5
     denom = np.where(denom <= 1e-12, 1e-12, denom)
     curvature = (dx * ddy - dy * ddx) / denom
 
-    # The L-curve corner corresponds to the point of maximum geometric curvature
-    corner_idx = int(np.argmax(curvature))
+    # Discard boundary artifacts (outer 8% of scan on each side) where derivatives vanish
+    trim = max(2, int(0.08 * N))
+    interior_curvature = np.full(N, -np.inf)
+    interior_curvature[trim:-trim] = curvature[trim:-trim]
+
+    # If curvature has a distinct positive maximum in the interior, that is the vertex
+    if np.max(interior_curvature) > 0:
+        corner_idx = int(np.argmax(interior_curvature))
+    else:
+        # Fallback: minimum distance to the ideal corner (0, 0) in normalized space
+        corner_idx = int(np.argmin(xn**2 + yn**2))
+
     return corner_idx
 
 
