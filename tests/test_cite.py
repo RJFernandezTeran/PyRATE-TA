@@ -32,6 +32,9 @@ def test_every_reference_is_complete():
         ("chameleon2022", "10.1021/acs.jchemed.2c00104"),
         ("vanstokkum2004", "10.1016/j.bbabio.2004.04.011"),
         ("berberansantos1990", "10.1021/ed067p375"),
+        ("kovalenko1999", "10.1103/PhysRevA.59.2369"),
+        ("optimus2015", "10.1021/ac504348h"),
+        ("hansen1992", "10.1137/1034115"),
     ],
 )
 def test_dois_are_exact(key, doi):

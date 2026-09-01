@@ -279,8 +279,14 @@ If you publish results obtained with PyRATE-TA, please cite:
    equations by matrix methods*, J. Chem. Educ. **1990**, 67, 375.
    [10.1021/ed067p375](https://doi.org/10.1021/ed067p375)
    — the eigenvector solution used by the propagator.
-5. P. C. Hansen, *Analysis of discrete ill-posed problems by means of the
+5. C. Slavov, H. Hartmann, J. Wachtveitl, *Implementation and Evaluation of
+   Data Analysis Strategies for Time-Resolved Optical Spectroscopy*, Anal.
+   Chem. **2015**, 87, 2328–2336.
+   [10.1021/ac504348h](https://doi.org/10.1021/ac504348h)
+   — Lifetime Density Analysis (LDA) and the OPTIMUS analysis framework.
+6. P. C. Hansen, *Analysis of discrete ill-posed problems by means of the
    L-curve*, SIAM Review **1992**, 34, 561–580.
+   [10.1137/1034115](https://doi.org/10.1137/1034115)
    — L-curve corner detection for LDA alpha selection.
 
 The list is printed by `pyrate-ta-cite` and logged when the GUI starts. Routines

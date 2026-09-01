@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from ..cite import cite
 from ..log import get_logger
 from ..models import ParallelModel
 from ..results.lda_result import LDAResult
@@ -55,28 +56,32 @@ def build_penalty_matrix(M: int, penalty: str = "d2") -> np.ndarray:
 
 
 def _find_l_curve_corner(log_res: np.ndarray, log_norm: np.ndarray, alphas: np.ndarray) -> int:
-    """Find index of maximum curvature on the L-curve (log_res vs log_norm)."""
-    # Sort by log_res ascending for monotonic derivative calculation
-    idx_sort = np.argsort(log_res)
-    x = log_res[idx_sort]
-    y = log_norm[idx_sort]
+    """Find index of maximum curvature on the L-curve (log_res vs log_norm).
 
-    if len(x) < 5:
+    Uses the 2D parametric curvature formula kappa(s) = (x'(s) y''(s) - y'(s) x''(s)) / (x'(s)^2 + y'(s)^2)^(3/2)
+    parameterized by s = log10(alpha), where alpha values are log-spaced.
+    """
+    s = np.log10(np.asarray(alphas, dtype=float))
+    x = np.asarray(log_res, dtype=float)
+    y = np.asarray(log_norm, dtype=float)
+
+    if len(s) < 5:
         return int(np.argmin(x**2 + y**2))
 
-    # Compute 1st and 2nd numerical derivatives using central differences
-    dx = np.gradient(x)
-    dy = np.gradient(y)
-    ddx = np.gradient(dx)
-    ddy = np.gradient(dy)
+    # Compute 1st and 2nd numerical derivatives with respect to s = log10(alpha)
+    dx = np.gradient(x, s)
+    dy = np.gradient(y, s)
+    ddx = np.gradient(dx, s)
+    ddy = np.gradient(dy, s)
 
-    # Menger / 2D parametric curvature formula: kappa = (dx * ddy - dy * ddx) / (dx^2 + dy^2)^(3/2)
+    # 2D parametric curvature: kappa = (x' * y'' - y' * x'') / (x'^2 + y'^2)^(3/2)
     denom = (dx**2 + dy**2) ** 1.5
     denom = np.where(denom <= 1e-12, 1e-12, denom)
-    curvature = np.abs(dx * ddy - dy * ddx) / denom
+    curvature = (dx * ddy - dy * ddx) / denom
 
-    corner_sorted_idx = int(np.argmax(curvature))
-    return int(idx_sort[corner_sorted_idx])
+    # The L-curve corner corresponds to the point of maximum geometric curvature
+    corner_idx = int(np.argmax(curvature))
+    return corner_idx
 
 
 def solve_lda(
@@ -193,6 +198,10 @@ def solve_lda(
     gcv_scores = []
     solutions = []
 
+    CtC = C_fit.T @ C_fit
+    LtL = L_fit.T @ L_fit
+    M_full = C_fit.shape[1]
+
     for a_val in alphas_scan:
         # Build augmented system: [ C_fit ; a_val * L_fit ] S_full^T = [ D_fit ; 0 ]
         C_aug = np.vstack([C_fit, a_val * L_fit])  # (Nd + K_row, n_taus + n_extra)
@@ -210,7 +219,18 @@ def solve_lda(
 
         log_residuals.append(np.log10(max(res_norm, 1e-12)))
         log_solution_norms.append(np.log10(max(sol_norm, 1e-12)))
-        gcv_scores.append(res_norm**2)
+
+        # Generalized Cross-Validation (GCV) formula
+        A_mat = CtC + (a_val**2) * LtL
+        try:
+            G_mat = np.linalg.solve(A_mat, np.eye(M_full))
+            tr_H = float(np.trace(G_mat @ CtC))
+        except np.linalg.LinAlgError:
+            G_mat = np.linalg.pinv(A_mat)
+            tr_H = float(np.trace(G_mat @ CtC))
+        denom = max(1.0 - tr_H / Nd, 1e-4) ** 2
+        gcv_score = (res_norm**2 / (Nd * Np)) / denom
+        gcv_scores.append(gcv_score)
 
     log_residuals = np.asarray(log_residuals)
     log_solution_norms = np.asarray(log_solution_norms)
@@ -245,12 +265,22 @@ def solve_lda(
     D_aug_opt = np.vstack([D_fit, np.zeros((K_row, Np))])
 
     if non_negative:
-        from scipy.optimize import nnls
+        if n_extra > 0:
+            from scipy.optimize import lsq_linear
 
-        opt_S_full_T = np.zeros((C_fit.shape[1], Np))
-        for j in range(Np):
-            sol_j, _ = nnls(C_aug_opt, D_aug_opt[:, j])
-            opt_S_full_T[:, j] = sol_j
+            lb = np.concatenate([np.zeros(n_taus), -np.full(n_extra, np.inf)])
+            ub = np.full(n_taus + n_extra, np.inf)
+            opt_S_full_T = np.zeros((C_fit.shape[1], Np))
+            for j in range(Np):
+                res_j = lsq_linear(C_aug_opt, D_aug_opt[:, j], bounds=(lb, ub))
+                opt_S_full_T[:, j] = res_j.x
+        else:
+            from scipy.optimize import nnls
+
+            opt_S_full_T = np.zeros((C_fit.shape[1], Np))
+            for j in range(Np):
+                sol_j, _ = nnls(C_aug_opt, D_aug_opt[:, j])
+                opt_S_full_T[:, j] = sol_j
     else:
         opt_S_full_T, _, _, _ = np.linalg.lstsq(C_aug_opt, D_aug_opt, rcond=None)
 
@@ -266,12 +296,22 @@ def solve_lda(
             D_boot = D_fit + opt_R[boot_idx, :]
             D_aug_b = np.vstack([D_boot, np.zeros((K_row, Np))])
             if non_negative:
-                from scipy.optimize import nnls
+                if n_extra > 0:
+                    from scipy.optimize import lsq_linear
 
-                S_b_T = np.zeros((C_fit.shape[1], Np))
-                for j in range(Np):
-                    s_j, _ = nnls(C_aug_opt, D_aug_b[:, j])
-                    S_b_T[:, j] = s_j
+                    lb = np.concatenate([np.zeros(n_taus), -np.full(n_extra, np.inf)])
+                    ub = np.full(n_taus + n_extra, np.inf)
+                    S_b_T = np.zeros((C_fit.shape[1], Np))
+                    for j in range(Np):
+                        r_j = lsq_linear(C_aug_opt, D_aug_b[:, j], bounds=(lb, ub))
+                        S_b_T[:, j] = r_j.x
+                else:
+                    from scipy.optimize import nnls
+
+                    S_b_T = np.zeros((C_fit.shape[1], Np))
+                    for j in range(Np):
+                        s_j, _ = nnls(C_aug_opt, D_aug_b[:, j])
+                        S_b_T[:, j] = s_j
             else:
                 S_b_T, _, _, _ = np.linalg.lstsq(C_aug_opt, D_aug_b, rcond=None)
             S_map_b = S_b_T[:n_taus, :].T
@@ -297,6 +337,10 @@ def solve_lda(
 
     l_curve_pts = np.column_stack([log_residuals, log_solution_norms])
     units = dict(getattr(data, "units", {}) or {})
+
+    cite("optimus2015")
+    if method_used == "lcurve":
+        cite("hansen1992")
 
     return LDAResult(
         tau_grid=tau_grid,

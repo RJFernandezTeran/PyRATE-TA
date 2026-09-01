@@ -326,9 +326,10 @@ class LDATabMixin:
         else:
             msg = (
                 "Recommended Literature Citations for LDA Analysis:\n\n"
-                "[1] Megerle, U., Lechner, R., & Riedle, E. (2011). Lifetime density analysis of femtosecond transient absorption spectra. Phys. Chem. Chem. Phys., 13, 8869-8877.\n"
-                "[2] Mullen, K. M., & van Stokkum, I. H. (2007). TIMP: an R package for modelling multi-way spectroscopic data. J. Stat. Softw., 18, 1-46.\n"
-                "[3] van Stokkum, I. H. et al. (2004). Global and target analysis of time-resolved spectra. BBA-Bioenergetics, 1657, 82-104.\n"
-                "[4] Hansen, P. C. (1992). Analysis of discrete ill-posed problems by means of the L-curve. SIAM Review, 34, 561-580."
+                "[1] Slavov, C., Hartmann, H., & Wachtveitl, J. (2015). Implementation and Evaluation of Data Analysis Strategies for Time-Resolved Optical Spectroscopy. Anal. Chem., 87(4), 2328-2336. DOI: 10.1021/ac504348h\n"
+                "[2] Dorlhiac, G. F., Fare, C., & van Thor, J. J. (2017). PyLDM - An open source package for lifetime density analysis of time-resolved spectroscopic data. PLOS Comput. Biol., 13(5), e1005528. DOI: 10.1371/journal.pcbi.1005528\n"
+                "[3] Steinbach, P. J., Ionescu, R., & Champion, P. M. (2002). Analysis of Kinetics Using a Hybrid Maximum-Entropy/Nonlinear-Least-Squares Method: Application to Protein Folding. Biophys. J., 82(4), 2244-2255. DOI: 10.1016/S0006-3495(02)75570-7\n"
+                "[4] Hansen, P. C. (1992). Analysis of discrete ill-posed problems by means of the L-curve. SIAM Review, 34(4), 561-580. DOI: 10.1137/1034115\n"
+                "[5] Golub, G. H., Heath, M., & Wahba, G. (1979). Generalized cross-validation as a method for choosing a good ridge parameter. Technometrics, 21(2), 215-223. DOI: 10.1080/00401706.1979.10489751"
             )
         QMessageBox.information(self, "Literature Citations for LDA", msg)

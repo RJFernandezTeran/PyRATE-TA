@@ -90,4 +90,5 @@ def test_solve_lda_literature_features():
     assert len(res_full.bootstrap_std) == 20
     cites = res_full.citations()
     assert len(cites) >= 4
-    assert "Megerle" in res_full.format_citations()
+    assert "Slavov" in res_full.format_citations()
+    assert "10.1021/ac504348h" in res_full.format_citations()
