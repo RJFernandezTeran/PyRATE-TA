@@ -518,7 +518,7 @@ def test_scheme_source_ignores_fit_result():
     from pyrate_ta.models.scheme_text import scheme_from_text
     win.custom_scheme = scheme_from_text("A -> B : k1\nB -> : k2\ninit A = 1")
 
-    win.read_lifetimes = lambda: ([1.0, 2.0], [False, False])
+    win.read_lifetimes = lambda: ([1.0, 2.0], ([0.0, 0.0], [np.inf, np.inf]), [False, False])
 
     class MockFit:
         pass

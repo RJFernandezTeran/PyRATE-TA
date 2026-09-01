@@ -138,7 +138,7 @@ class KineticModel:
         the span of the data -- an IRF wider than the measurement is never a
         physical answer, and leaving it unbounded is how a fit runs away.
         """
-        lo = [0.0] * self.n_lifetimes
+        lo = [1e-5] * self.n_lifetimes
         hi = [np.inf] * self.n_lifetimes
         if t is not None:
             t = np.asarray(t, dtype=float)
@@ -149,7 +149,7 @@ class KineticModel:
             lo.append(-np.inf if t is None else float(np.nanmin(t)))
             hi.append(np.inf if t is None else float(np.nanmax(t)))
         if self.fit_irf:
-            lo.append(0.0)
+            lo.append(1e-4)
             hi.append(span)
         return np.asarray(lo, dtype=float), np.asarray(hi, dtype=float)
 

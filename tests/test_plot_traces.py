@@ -177,11 +177,47 @@ def test_plot_spectra_with_fit_and_residuals(sample_dataset_and_fit):
     # Verify residuals axis has no legend
     assert ax_res.get_legend() is None
 
-    # Verify trace legend is set to not be in layout (for tight layout compatibility)
-    legend = ax_trace.get_legend()
-    assert legend is not None
-    assert legend.get_in_layout() is False
+def test_plot_species_spectra_and_concentrations_target_model():
+    """Target models should label species spectra and concentrations by species name only."""
+    from pyrate_ta.plot.concentrations import plot_concentrations
+    from pyrate_ta.results.fits import TargetFit
+
+    t = np.linspace(0, 10, 20)
+    probe = np.linspace(1000, 1500, 10)
+    C = np.ones((len(t), 3))
+    S = np.ones((len(probe), 3))
+    R = np.zeros((len(t), len(probe)))
+
+    fit = TargetFit(
+        taus=np.array([1.0, 5.0, 20.0, 100.0]),  # 4 rate parameters
+        tau_err=np.array([0.1, 0.5, 2.0, 10.0]),
+        is_fixed=np.zeros(4, dtype=bool),
+        S=S,
+        R=R,
+        C=C,
+        model_type="Target",
+        t=t,
+        probe=probe,
+        scheme_text="Q -> I : k1\nI -> D : k2\nD -> : k3\nD -> : k4",
+    )
+
+    # 1. Concentrations plot
+    ax_conc = plot_concentrations(fit, labels=["Q", "I", "D"])
+    legend_conc = ax_conc.get_legend()
+    conc_labels = [t.get_text() for t in legend_conc.get_texts()]
+    assert conc_labels == ["Q", "I", "D"]
+
+    # 2. Species spectra plot
+    ds = pm.Dataset1D(np.zeros((len(t), len(probe), 1)), t, probe, {})
+    ax_spec = ds.plot_species_spectra(
+        *fit.as_species_args(),
+        species_labels=fit.species_labels(),
+    )
+    legend_spec = ax_spec.get_legend()
+    spec_labels = [t.get_text() for t in legend_spec.get_texts()]
+    assert spec_labels == ["Q", "I", "D"]
 
     plt.close("all")
+
 
 

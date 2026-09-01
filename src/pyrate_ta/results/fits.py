@@ -202,7 +202,11 @@ class KineticFit:
         ``show_uncertainties`` and ``round_uncertainties``, so the summary agrees
         with the legends rather than reporting a different precision.
         """
-        from pymorgan.helpers import format_uncertainty_pair
+        try:
+            from pymorgan.helpers import format_uncertainty_pair
+        except Exception:
+            def format_uncertainty_pair(v, e):
+                return (f"{v:.4g}", f"{e:.3g}" if np.isfinite(e) else None)
 
         from ..helpers import format_lifetime
         from ..settings import get_settings
@@ -222,7 +226,11 @@ class KineticFit:
                 lines.append(f"  tau{i + 1} = inf (non-decaying){flag}")
             elif show and s.round_uncertainties:
                 value, error = format_uncertainty_pair(tau, err)
-                lines.append(f"  tau{i + 1} = {value} +/- {error}{flag}")
+                # If large error rounded a non-zero lifetime down to 0, preserve lifetime value
+                if abs(tau) > 0 and value == "0":
+                    lines.append(f"  tau{i + 1} = {format_lifetime(tau)} +/- {err:.3g}{flag}")
+                else:
+                    lines.append(f"  tau{i + 1} = {value} +/- {error}{flag}")
             elif show:
                 lines.append(f"  tau{i + 1} = {format_lifetime(tau)} +/- {err:.3g}{flag}")
             else:
