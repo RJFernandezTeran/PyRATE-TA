@@ -31,6 +31,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, fields
 from enum import StrEnum
+import math
 from pathlib import Path
 from typing import Any
 
@@ -72,6 +73,9 @@ class Settings:
     n_components: int = 2
     # Default kinetic model family for a new fit.
     model_type: ModelType = ModelType.SEQUENTIAL
+    # Default time limits for fitting in dataset time units: [min, max].
+    # None (or "inf") for upper limit takes the maximum available delay.
+    time_limits: tuple[float | None, float | None] = (0.2, None)
     # Add a constant offset (an infinite-lifetime component) by default.
     offset: bool = False
 
@@ -235,6 +239,8 @@ class Settings:
                 value = str(value)
             elif isinstance(value, Path):
                 value = str(value)
+            elif isinstance(value, tuple):
+                value = [("None" if v is None else v) for v in value]
             out[f.name] = value
         return out
 
@@ -271,6 +277,7 @@ class Settings:
             # [fit]
             "n_components": "fit",
             "model_type": "fit",
+            "time_limits": "fit",
             "offset": "fit",
             # [solver]
             "ftol": "solver",
@@ -357,6 +364,10 @@ class Settings:
         return {
             "n_components": "Components proposed for a new fit.",
             "model_type": "Parallel (DAS) / Sequential (EAS) / Target (SAS).",
+            "time_limits": (
+                "Default time limits for fitting in dataset time units: [min, max] "
+                "(None/inf for upper limit takes the maximum available delay)."
+            ),
             "offset": (
                 "Deprecated: a non-decaying component is now created by entering a "
                 "lifetime of inf, not by this flag."
@@ -464,6 +475,15 @@ _SPEC_OVERRIDES: dict[str, dict[str, Any]] = {
         "choices": [str(m) for m in ModelType],
         "tab": "fit",
     },
+    "time_limits": {
+        "label": "Time limits (ps)",
+        "kind": "text",
+        "tab": "fit",
+        "tooltip": (
+            "Default fitting time window [min, max] delays; None/inf for upper "
+            "limit takes max available delay."
+        ),
+    },
     # ``offset`` is deliberately absent: an inf lifetime is the offset
     # now, so the field is deprecated and hidden (see below).
     "ftol": {"label": "Cost tolerance", "kind": "float", "tab": "solver"},
@@ -570,6 +590,8 @@ def _kind_of(annotation: Any) -> dict[str, Any]:
         return {"kind": "bool"}
     if "int" in text and "float" not in text:
         return {"kind": "int", "min": 0, "max": 10**6}
+    if "tuple" in text:
+        return {"kind": "text"}
     if "float" in text:
         return {"kind": "float"}
     if "Path" in text:
@@ -587,7 +609,7 @@ def _coerce_field(annotation: Any, value: Any) -> Any:
     if value is None:
         return None
     text = annotation if isinstance(annotation, str) else getattr(annotation, "__name__", "")
-    if isinstance(value, str) and not value.strip() and "None" in text:
+    if isinstance(value, str) and not value.strip() and "None" in text and "tuple" not in text:
         return None
     if "ModelType" in text and not isinstance(value, ModelType):
         return ModelType(value)
@@ -599,6 +621,46 @@ def _coerce_field(annotation: Any, value: Any) -> Any:
         return Path(value)
     if "bool" in text and not isinstance(value, bool):
         return bool(value)
+    if "tuple" in text:
+        if isinstance(value, str):
+            parts = [p for p in value.strip(" ()[]").replace(",", " ").split() if p]
+        elif isinstance(value, (tuple, list)):
+            parts = list(value)
+        else:
+            parts = [value]
+
+        if len(parts) == 0:
+            return (None, None)
+        if len(parts) == 1:
+            parts = [parts[0], None]
+
+        def _coerce_bound(v, is_upper: bool):
+            if v is None:
+                return None
+            if isinstance(v, (int, float)):
+                if is_upper and (v == float("inf") or (isinstance(v, float) and math.isinf(v) and v > 0)):
+                    return None
+                if not is_upper and (v == float("-inf") or (isinstance(v, float) and math.isinf(v) and v < 0)):
+                    return None
+                return float(v)
+            s_val = str(v).strip().strip("\"'").lower()
+            if s_val in ("none", "", "null"):
+                return None
+            if is_upper and s_val in ("inf", "+inf", "infinity", "+infinity", "max"):
+                return None
+            if not is_upper and s_val in ("-inf", "-infinity", "min"):
+                return None
+            try:
+                flt = float(s_val)
+                if is_upper and (flt == float("inf") or math.isinf(flt) and flt > 0):
+                    return None
+                if not is_upper and (flt == float("-inf") or math.isinf(flt) and flt < 0):
+                    return None
+                return flt
+            except ValueError:
+                raise ValueError(f"invalid value {v!r} in tuple bounds")
+
+        return (_coerce_bound(parts[0], is_upper=False), _coerce_bound(parts[1], is_upper=True))
     if "int" in text and "float" not in text and not isinstance(value, int):
         return int(value)
     if "float" in text and not isinstance(value, float):

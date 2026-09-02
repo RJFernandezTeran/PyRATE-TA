@@ -65,12 +65,59 @@ class LDAResult:
     bootstrap_std: np.ndarray | None = None
     peaks: list[dict] = field(default_factory=list)
     statistic: Any = None
+    delay_range: tuple[float, float] | None = None
+    probe_range: tuple[float, float] | None = None
     units: dict = field(default_factory=dict)
     settings: dict = field(default_factory=dict)
 
     @property
     def n_taus(self) -> int:
         return len(self.tau_grid)
+
+    def integrated_dynamics(self, metric: str = "abs") -> np.ndarray:
+        """Integrated dynamics profile across the lifetime grid.
+
+        Parameters
+        ----------
+        metric : {"abs", "dynamical_content", "sqrt_sq"}
+            - ``"abs"``: absolute sum :math:`A(\\tau) = \\int |S(\\lambda, \\tau)| d\\lambda`.
+            - ``"dynamical_content"`` / ``"sqrt_sq"``: :math:`D(\\tau) = \\sqrt{\\int S(\\lambda, \\tau)^2 d\\lambda}`.
+
+        Returns
+        -------
+        numpy.ndarray, shape ``(M,)``
+        """
+        if metric in ("dynamical_content", "sqrt_sq", "rms", "d"):
+            return np.sqrt(np.sum(self.S_map**2, axis=0))
+        return np.sum(np.abs(self.S_map), axis=0)
+
+    def find_peaks(self, metric: str = "abs", prominence: float = 0.05) -> list[dict]:
+        """Auto-detect major lifetime peak centroids.
+
+        Parameters
+        ----------
+        metric : {"abs", "dynamical_content"}
+            Which profile metric to detect peaks on.
+        prominence : float
+            Peak prominence as a fraction of peak maximum.
+
+        Returns
+        -------
+        list of dict with keys ``"tau"``, ``"amplitude"``, ``"index"``.
+        """
+        from scipy.signal import find_peaks as sc_find_peaks
+
+        profile = self.integrated_dynamics(metric=metric)
+        max_val = np.max(profile) if len(profile) > 0 and np.max(profile) > 0 else 1.0
+        p_indices, _ = sc_find_peaks(profile, prominence=float(prominence) * max_val)
+        return [
+            {
+                "tau": float(self.tau_grid[i]),
+                "amplitude": float(profile[i]),
+                "index": int(i),
+            }
+            for i in p_indices
+        ]
 
     def citations(self) -> list[str]:
         """Return literature citations for the specific algorithms used in this LDA fit."""

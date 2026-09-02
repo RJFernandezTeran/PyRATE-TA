@@ -102,7 +102,8 @@ def test_fit_global_accepts_a_dataset_and_records_its_provenance():
     assert np.allclose(fit.taus, TAUS, rtol=1e-4)
     assert fit.source == "stub.pdat"
     assert fit.detector == 0
-    assert fit.delay_range == (float(T.min()), float(T.max()))
+    assert fit.delay_range[0] >= 0.2
+    assert fit.delay_range[1] == float(T.max())
     assert fit.probe_range == (float(PROBE.min()), float(PROBE.max()))
 
 
@@ -533,9 +534,17 @@ def test_the_artefact_basis_needs_a_width():
 def test_the_artefact_stops_it_distorting_the_shortest_lifetime():
     """The point of the option: without it, tau1 absorbs the artefact."""
     t, _, D = _artefact_data()
-    plain = pr.fit_global(D, t, taus=[5.0, 200.0], model_type="Sequential", irf_fwhm=0.3)
+    plain = pr.fit_global(
+        D, t, taus=[5.0, 200.0], model_type="Sequential", irf_fwhm=0.3, delay_range=(t.min(), t.max())
+    )
     fitted = pr.fit_global(
-        D, t, taus=[5.0, 200.0], model_type="Sequential", irf_fwhm=0.3, coherent_artifact=True
+        D,
+        t,
+        taus=[5.0, 200.0],
+        model_type="Sequential",
+        irf_fwhm=0.3,
+        coherent_artifact=True,
+        delay_range=(t.min(), t.max()),
     )
 
     assert fitted.statistic.value < 0.1 * plain.statistic.value
@@ -547,7 +556,13 @@ def test_the_artefact_columns_are_not_species():
     """They have no lifetime, so they must not reach the species-spectra plot."""
     t, _, D = _artefact_data()
     fit = pr.fit_global(
-        D, t, taus=[5.0, 200.0], model_type="Sequential", irf_fwhm=0.3, coherent_artifact=True
+        D,
+        t,
+        taus=[5.0, 200.0],
+        model_type="Sequential",
+        irf_fwhm=0.3,
+        coherent_artifact=True,
+        delay_range=(t.min(), t.max()),
     )
     assert fit.n_artifact == 3
     assert fit.C.shape[1] == fit.n_components + 3
@@ -658,7 +673,7 @@ def test_lifetime_labels_are_rounded_and_use_a_proper_plus_minus():
 def test_quoting_follows_the_settings():
     """Whether an uncertainty is shown, and how coarsely, is the user's choice."""
     D, _ = _data()
-    fit = pr.fit_global(D, T, taus=list(TAUS), model_type="Sequential")
+    fit = pr.fit_global(D, T, taus=list(TAUS), model_type="Sequential", delay_range=(T.min(), T.max()))
     original = pr.get_settings()
     try:
         pr.update_settings(show_uncertainties=True, round_uncertainties=True)
@@ -1008,5 +1023,38 @@ def test_the_monitor_is_off_unless_asked_for():
         assert pr.get_settings().fit_monitor_every == 0
         pr.update_settings(fit_monitor_every=5)
         assert pr.get_settings().fit_monitor_every == 5
+    finally:
+        pr.set_settings(original)
+
+
+def test_time_limits_setting_applied_to_fits():
+    """Fits default to time_limits setting [0.2, max] and can be overridden."""
+    D, _ = _data()
+    original = pr.get_settings()
+    try:
+        # Default setting: (0.2, None)
+        pr.update_settings(time_limits=(0.2, None))
+        fit_default = pr.fit_global(_StubDataset(D), taus=[3.0, 100.0], irf_fwhm=0.3)
+        assert fit_default.delay_range[0] >= 0.2
+        assert fit_default.delay_range[1] == float(T.max())
+        assert fit_default.t.min() >= 0.2
+
+        # Plain arrays default
+        fit_arr = pr.fit_global(D, T, taus=[3.0, 100.0], irf_fwhm=0.3)
+        assert fit_arr.delay_range[0] >= 0.2
+        assert fit_arr.delay_range[1] == float(T.max())
+        assert fit_arr.t.min() >= 0.2
+
+        # Explicit delay_range overrides setting
+        fit_override = pr.fit_global(D, T, taus=[3.0, 100.0], irf_fwhm=0.3, delay_range=(1.0, 50.0))
+        assert fit_override.delay_range[0] >= 1.0
+        assert fit_override.delay_range[1] <= 50.0
+        assert fit_override.t.min() >= 1.0
+        assert fit_override.t.max() <= 50.0
+
+        # Setting time_limits to (None, None) keeps all delays
+        pr.update_settings(time_limits=(None, None))
+        fit_all = pr.fit_global(_StubDataset(D), taus=[3.0, 100.0], irf_fwhm=0.3)
+        assert fit_all.delay_range == (float(T.min()), float(T.max()))
     finally:
         pr.set_settings(original)

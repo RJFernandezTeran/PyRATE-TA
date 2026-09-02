@@ -80,11 +80,21 @@ class FitTabMixin:
     def describe_fit_limits(self) -> str:
         """One line naming what will actually be fitted, for the status bar."""
         delay_range, probe_range = self.fit_limits()
-        if delay_range is None and probe_range is None:
+        effective_delay = delay_range
+        if effective_delay is None and self.dataset is not None:
+            s = pr.get_settings()
+            if s.time_limits is not None:
+                delays = np.asarray(self.dataset.delays, dtype=float)
+                t_lo = float(delays.min()) if s.time_limits[0] is None else float(s.time_limits[0])
+                t_hi = float(delays.max()) if s.time_limits[1] is None else float(s.time_limits[1])
+                if t_lo > delays.min() or t_hi < delays.max():
+                    effective_delay = (t_lo, t_hi)
+
+        if effective_delay is None and probe_range is None:
             return "fitting the whole dataset"
         parts = []
-        if delay_range is not None:
-            parts.append(f"delays {delay_range[0]:.4g} to {delay_range[1]:.4g}")
+        if effective_delay is not None:
+            parts.append(f"delays {effective_delay[0]:.4g} to {effective_delay[1]:.4g}")
         if probe_range is not None:
             parts.append(f"probe {probe_range[0]:.6g} to {probe_range[1]:.6g}")
         return "fitting " + ", ".join(parts)

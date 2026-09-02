@@ -65,6 +65,11 @@ _DATASET_ENABLED_WIDGETS = [
     "RestrictFitCheckBox",
     "ExtraPlotsAfterFit_CheckBox",
     "ShowSchemeButton",
+    "LDAGroup",
+    "RunLDAButton",
+    "LDACitationsButton",
+    "LDADynamicalContentCheckBox",
+    "LDARestrictFitCheckBox",
 ]
 
 
@@ -118,6 +123,11 @@ _TOOLTIPS = {
     "PP_SurfaceplotButton": "Open a 3D surface plot of the dataset",
     "PP_PlotTrSpectraButton": "Plot transient spectra at selected delays",
     "PP_IncludeResiduals": "Include a linked residuals panel below kinetic trace plots",
+    "PP_InteractivemodeSwitch": (
+        "Pick kinetic / spectral cut positions interactively by clicking on the 2D contour map "
+        "(left-click adds, right-click removes, Enter plots, Esc cancels)"
+    ),
+    "PP_SavetracesSwitch": "Save extracted cut traces to disk as text/data files",
     "PC_restore": "Restore the default axis limits and colour scale",
     "RunLDAButton": "Solve Lifetime Density Analysis across the grid",
     "PlotLDAMapButton": "Open 2D contour map of lifetime distribution S(tau, lambda)",
@@ -133,7 +143,12 @@ _TOOLTIPS = {
     "LDASVDFilterSpinBox": "Pre-filter raw dataset using top K SVD singular components to suppress probe noise (0 = Off)",
     "LDANonNegativeCheckBox": "Enforce non-negative amplitudes S >= 0 via regularised Non-Negative Least Squares (NNLS)",
     "LDABootstrapSpinBox": "Number of Monte Carlo bootstrap iterations for confidence intervals on integrated dynamics A(tau) (0 = Off)",
-    "LDAPeaksCheckBox": "Automatically locate major lifetime peak centroids from A(tau)",
+    "LDAPeaksCheckBox": "Automatically locate and annotate major lifetime peak centroids",
+    "LDADynamicalContentCheckBox": (
+        "Plot dynamical content D(tau) = sqrt(int S^2 dlambda) instead of absolute "
+        "integral A(tau) = int |S| dlambda in the 2D map side panel"
+    ),
+    "LDARestrictFitCheckBox": "Fit only the delay/probe window currently displayed",
     "LDACitationsButton": "Show literature citations for the selected LDA algorithms",
     "GSBRecoveryCheckBox": "Overlay ground-state bleach recovery spectrum (-1 * GS) on species spectra",
 }
@@ -325,10 +340,20 @@ _BUTTON_PALETTES: dict[str, str] = {
     "PP_PlotKineticsButton": "kinetics",
     "PP_SurfaceplotButton": "surface",
     "PP_PlotTrSpectraButton": "spectra",
+    # Lifetime Density Analysis (LDA) tab buttons
+    "RunLDAButton": "fit",
+    "PlotLDAMapButton": "contour",
+    "PlotLCurveButton": "preview",
+    "PlotLDASliceButton": "kinetics",
+    "SaveLDAMapPDATButton": "load",
+    "LDACitationsButton": "neutral",
 }
 
-# The FIT DATA button is the primary action and is set one step larger.
-_BUTTON_FONT_SIZES: dict[str, str] = {"FITDATAButton": "13px"}
+# The primary action buttons are set one step larger.
+_BUTTON_FONT_SIZES: dict[str, str] = {
+    "FITDATAButton": "13px",
+    "RunLDAButton": "13px",
+}
 
 
 def button_stylesheet(palette: str, dark: bool, font_size: str = "11px") -> str:

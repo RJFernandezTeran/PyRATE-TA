@@ -146,8 +146,8 @@ class KineticModel:
         else:
             span = np.inf
         if self.fit_t0:
-            lo.append(-np.inf if t is None else float(np.nanmin(t)))
-            hi.append(np.inf if t is None else float(np.nanmax(t)))
+            lo.append(-np.inf if t is None else min(float(self.t0), 0.0, float(np.nanmin(t))))
+            hi.append(np.inf if t is None else max(float(self.t0), 0.0, float(np.nanmax(t))))
         if self.fit_irf:
             lo.append(1e-4)
             hi.append(span)

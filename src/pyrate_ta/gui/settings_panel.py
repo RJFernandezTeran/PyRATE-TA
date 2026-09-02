@@ -60,7 +60,7 @@ def _as_text(value) -> str:
     if value is None:
         return ""
     if isinstance(value, (tuple, list)):
-        return ", ".join(str(v) for v in value)
+        return ", ".join("None" if v is None else str(v) for v in value)
     return str(value)
 
 

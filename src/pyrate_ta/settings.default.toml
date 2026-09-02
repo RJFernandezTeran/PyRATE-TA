@@ -16,6 +16,10 @@ n_components = 2
 # Default kinetic model family for a new fit: "Parallel" (DAS) / "Sequential" (EAS) / "Target" (SAS).
 model_type = "Sequential"
 
+# Default time limits for fitting in dataset time units: [min, max].
+# Set upper limit to "None" (or "inf") to take the maximum available delay.
+time_limits = [0.2, "None"]
+
 # Deprecated: a non-decaying component is now created by entering a lifetime of inf.
 offset = false
 

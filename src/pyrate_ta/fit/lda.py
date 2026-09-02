@@ -135,6 +135,9 @@ def solve_lda(
     non_negative: bool = False,
     n_bootstraps: int = 0,
     find_peaks: bool = False,
+    delay_range: tuple[float, float] | None = None,
+    probe_range: tuple[float, float] | None = None,
+    callback: Callable[[int, int, str], None] | None = None,
 ) -> LDAResult:
     """Run Lifetime Density Analysis (LDA) on time-resolved data.
 
@@ -160,6 +163,8 @@ def solve_lda(
         Method for auto-selecting alpha.
     alphas : array_like, optional
         Array of candidate alpha values to scan.
+    detector : int, default 0
+        Detector index if data has multiple detectors.
     coherent_artifact : bool, default False
         Include IRF and derivative basis columns at t0 to absorb solvent artefact.
     svd_components : int, default 0
@@ -170,6 +175,12 @@ def solve_lda(
         Number of Monte Carlo bootstrap iterations for confidence intervals on A(tau) (0 = Off).
     find_peaks : bool, default False
         Automatically locate major lifetime peak centroids from A(tau).
+    delay_range : tuple of (float, float), optional
+        Restricted delay window to fit.
+    probe_range : tuple of (float, float), optional
+        Restricted probe window to fit.
+    callback : callable, optional
+        Progress callback ``callback(current_step, total_steps, message)``.
 
     Returns
     -------
@@ -177,7 +188,13 @@ def solve_lda(
     """
     from .engines import _as_problem
 
-    prob = _as_problem(data, t=t, detector=detector)
+    prob = _as_problem(
+        data,
+        t=t,
+        detector=detector,
+        delay_range=delay_range,
+        probe_range=probe_range,
+    )
     t_arr = prob.t
     D = prob.D
     Nd, Np = D.shape
@@ -234,8 +251,18 @@ def solve_lda(
     CtC = C_fit.T @ C_fit
     LtL = L_fit.T @ L_fit
     M_full = C_fit.shape[1]
+    total_steps = len(alphas_scan) + (int(n_bootstraps) if n_bootstraps else 0)
+    current_step = 0
 
     for a_val in alphas_scan:
+        current_step += 1
+        if callback is not None:
+            callback(
+                current_step,
+                total_steps,
+                f"Alpha scan ({current_step}/{len(alphas_scan)}): alpha = {a_val:.3g}",
+            )
+
         # Build augmented system: [ C_fit ; a_val * L_fit ] S_full^T = [ D_fit ; 0 ]
         C_aug = np.vstack([C_fit, a_val * L_fit])  # (Nd + K_row, n_taus + n_extra)
         D_aug = np.vstack([D_fit, np.zeros((K_row, Np))])  # (Nd + K_row, Np)
@@ -324,7 +351,14 @@ def solve_lda(
     bootstrap_std = None
     if n_bootstraps > 0 and n_bootstraps <= 500:
         A_boots = []
-        for _ in range(int(n_bootstraps)):
+        for b_i in range(int(n_bootstraps)):
+            current_step += 1
+            if callback is not None:
+                callback(
+                    current_step,
+                    total_steps,
+                    f"Bootstrap resampling ({b_i + 1}/{n_bootstraps})",
+                )
             boot_idx = np.random.choice(Nd, size=Nd, replace=True)
             D_boot = D_fit + opt_R[boot_idx, :]
             D_aug_b = np.vstack([D_boot, np.zeros((K_row, Np))])
@@ -394,5 +428,7 @@ def solve_lda(
         n_bootstraps=int(n_bootstraps) if n_bootstraps else 0,
         bootstrap_std=bootstrap_std,
         peaks=detected_peaks,
+        delay_range=prob.delay_range,
+        probe_range=prob.probe_range,
         units=units,
     )

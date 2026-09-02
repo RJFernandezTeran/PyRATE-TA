@@ -124,6 +124,8 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         # The fit window follows the display window when "restrict" is on, so a
         # limit change is worth echoing in the status bar.
         self.plot_controls.limitsChanged.connect(self._on_limits_changed)
+        if getattr(self.plot_controls, "restore_btn", None) is not None:
+            self.plot_controls.restore_btn.clicked.connect(self._apply_default_time_limits_to_plot_controls)
 
     # ------------------------------------------------------------------ #
     #                             Aesthetics                             #
@@ -222,12 +224,23 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         for name in ("ShowDataButton", "ShowFitButton", "ShowResidualsButton"):
             self._connect(name, "toggled", lambda checked: checked and self._on_view_changed())
         self._connect("RestrictFitCheckBox", "toggled", lambda *_: self._on_limits_changed())
+        self._connect("LDARestrictFitCheckBox", "toggled", lambda *_: self._on_limits_changed())
         self._connect("RunLDAButton", "clicked", self.run_lda_from_gui)
         self._connect("PlotLDAMapButton", "clicked", self.popout_lda_map)
         self._connect("PlotLCurveButton", "clicked", self.popout_l_curve)
         self._connect("PlotLDASliceButton", "clicked", self.popout_lda_slice)
         self._connect("SaveLDAMapPDATButton", "clicked", self.save_lda_map_pdat)
         self._connect("LDACitationsButton", "clicked", self.show_lda_citations)
+        self._connect(
+            "LDADynamicalContentCheckBox",
+            "toggled",
+            lambda *_: getattr(self, "lda_result", None) is not None and self._render_lda_plots(self.lda_result),
+        )
+        self._connect(
+            "LDAPeaksCheckBox",
+            "toggled",
+            lambda *_: getattr(self, "lda_result", None) is not None and self._render_lda_plots(self.lda_result),
+        )
 
         self._connect("PP_ContourplotButton", "clicked", lambda: self._popout("contour"))
         self._connect("PP_SurfaceplotButton", "clicked", lambda: self._popout("surface"))
