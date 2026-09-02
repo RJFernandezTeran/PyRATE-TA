@@ -199,10 +199,18 @@ def _as_problem(
     D = np.atleast_2d(np.asarray(data, dtype=float))
     t_arr = np.asarray(t, dtype=float).ravel()
     keep = np.ones(t_arr.size, dtype=bool)
+    eff_delay_range = delay_range
+    if eff_delay_range is None:
+        from ..settings import get_settings
+
+        eff_delay_range = get_settings().time_limits
+
+    if eff_delay_range is not None:
+        t_lo = float(np.nanmin(t_arr)) if eff_delay_range[0] is None else float(eff_delay_range[0])
+        t_hi = float(np.nanmax(t_arr)) if eff_delay_range[1] is None else float(eff_delay_range[1])
+        keep &= (t_arr >= t_lo) & (t_arr <= t_hi)
     if t_min is not None:
         keep &= t_arr >= float(t_min)
-    if delay_range is not None:
-        keep &= (t_arr >= float(delay_range[0])) & (t_arr <= float(delay_range[1]))
     sig = None if sigma is None else np.atleast_2d(np.asarray(sigma, dtype=float))[keep]
     return ProblemData(
         t=t_arr[keep],

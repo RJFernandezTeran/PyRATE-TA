@@ -57,11 +57,59 @@ def test_no_reverse_dependency():
 
 def test_settings_roundtrip():
     """to_dict/from_dict must survive a round trip with enums intact."""
-    s = pr.Settings(n_components=3, model_type=pr.ModelType.TARGET, n_contours=40)
+    s = pr.Settings(
+        n_components=3,
+        model_type=pr.ModelType.TARGET,
+        n_contours=40,
+        time_limits=(0.2, None),
+    )
     restored = pr.Settings.from_dict(s.to_dict())
     assert restored.n_components == 3
     assert restored.model_type is pr.ModelType.TARGET
     assert restored.n_contours == 40
+    assert restored.time_limits == (0.2, None)
+
+
+def test_time_limits_coercion():
+    """time_limits must coerce strings, lists, tuples, None, and inf properly."""
+    s = pr.Settings(time_limits="0.2, None")
+    assert s.time_limits == (0.2, None)
+
+    s2 = pr.Settings(time_limits="0.2, inf")
+    assert s2.time_limits == (0.2, None)
+
+    s3 = pr.Settings(time_limits="0.2, 5000.0")
+    assert s3.time_limits == (0.2, 5000.0)
+
+    s4 = pr.Settings(time_limits="[0.5, None]")
+    assert s4.time_limits == (0.5, None)
+
+    s5 = pr.Settings(time_limits="none, none")
+    assert s5.time_limits == (None, None)
+
+    s6 = pr.Settings(time_limits=[0.2, "None"])
+    assert s6.time_limits == (0.2, None)
+
+    s7 = pr.Settings(time_limits=[0.2, float("inf")])
+    assert s7.time_limits == (0.2, None)
+
+    s8 = pr.Settings(time_limits="0.2")
+    assert s8.time_limits == (0.2, None)
+
+
+def test_time_limits_toml_save_load(tmp_path):
+    """time_limits must serialize to TOML and load back correctly."""
+    p = tmp_path / "settings.toml"
+    s = pr.Settings(time_limits=(0.2, None))
+    s.save(p)
+
+    loaded = pr.Settings.load(p)
+    assert loaded.time_limits == (0.2, None)
+
+    s2 = pr.Settings(time_limits=(1.0, 500.0))
+    s2.save(p)
+    loaded2 = pr.Settings.load(p)
+    assert loaded2.time_limits == (1.0, 500.0)
 
 
 

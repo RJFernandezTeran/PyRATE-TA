@@ -122,8 +122,16 @@ def prepare(
 
     # --- restrict ---------------------------------------------------------- #
     keep_t = np.ones(delays.size, dtype=bool)
-    if delay_range is not None:
-        keep_t &= (delays >= float(delay_range[0])) & (delays <= float(delay_range[1]))
+    eff_delay_range = delay_range
+    if eff_delay_range is None:
+        from ..settings import get_settings
+
+        eff_delay_range = get_settings().time_limits
+
+    if eff_delay_range is not None:
+        t_lo = float(np.nanmin(delays)) if eff_delay_range[0] is None else float(eff_delay_range[0])
+        t_hi = float(np.nanmax(delays)) if eff_delay_range[1] is None else float(eff_delay_range[1])
+        keep_t &= (delays >= t_lo) & (delays <= t_hi)
     if t_min is not None:
         keep_t &= delays >= float(t_min)
     keep_p = np.ones(probe.size, dtype=bool)

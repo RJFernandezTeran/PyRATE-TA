@@ -63,6 +63,9 @@ def test_ui_file_exists_and_parses():
         "PlotArea",
         "PC_box",
         "PP_PlotsandcutsPanel",
+        "PP_InteractivemodeSwitch",
+        "LDADynamicalContentCheckBox",
+        "LDARestrictFitCheckBox",
         "actionOpen",
         "actionAbout",
     ],
@@ -564,4 +567,133 @@ def test_about_dialog():
     assert "https://github.com/RJFernandezTeran/PyRATE-TA" in lbl_details.text()
     assert "https://www.unige.ch/sciences/chifi/fernandez-teran/" in lbl_details.text()
     dlg.close()
+
+
+def test_plot_controls_y_limits_default_to_time_limits():
+    """MainWindow applies time_limits setting to plot controls on dataset load and restore."""
+    _require_qt()
+    from PyQt6.QtWidgets import QApplication
+    import pyrate_ta as pr
+    import numpy as np
+    import pymorgan as pm
+    from pyrate_ta.gui.main_window import MainWindow
+
+    _app = QApplication.instance() or QApplication([])
+    win = MainWindow()
+
+    t = np.linspace(-1.0, 10.0, 25)
+    probe = np.array([1000.0, 1500.0])
+    ds = pm.Dataset1D(np.zeros((25, 2, 1)), t, probe, {})
+
+    original = pr.get_settings()
+    try:
+        pr.update_settings(time_limits=(0.2, None))
+        win.dataset = ds
+        win.plot_controls.set_dataset(ds)
+        win._apply_default_time_limits_to_plot_controls()
+        win._set_dataset_widgets_enabled(True)
+
+        assert abs(win.plot_controls.y_min.value() - 0.2) < 1e-5
+        assert abs(win.plot_controls.y_max.value() - 10.0) < 1e-5
+
+        # Modify limits and click restore
+        win.plot_controls.y_min.setValue(2.0)
+        win.plot_controls.restore_btn.click()
+        _app.processEvents()
+        assert abs(win.plot_controls.y_min.value() - 0.2) < 1e-5
+        assert abs(win.plot_controls.y_max.value() - 10.0) < 1e-5
+    finally:
+        pr.set_settings(original)
+        win.close()
+
+
+def test_interactive_mode_cut_picking():
+    _require_qt()
+    from unittest.mock import patch
+    import numpy as np
+    import pymorgan as pm
+    from pyrate_ta.gui.main_window import MainWindow
+
+    win = MainWindow()
+    try:
+        t = np.linspace(-1, 10, 20)
+        probe = np.array([1000.0, 1500.0])
+        ds = pm.Dataset1D(np.zeros((20, 2, 1)), t, probe, {})
+        win.dataset = ds
+        win.render_all()
+
+        assert win.PP_InteractivemodeSwitch is not None
+        win.PP_InteractivemodeSwitch.setChecked(True)
+        assert win._interactive() is True
+
+        # When interactive is True, _popout('kinetics') calls _pick_cut
+        with patch.object(win, "_pick_cut") as mock_pick:
+            win._popout("kinetics")
+            mock_pick.assert_called_once_with("kinetics")
+
+        with patch.object(win, "_pick_cut") as mock_pick:
+            win._popout("spectra")
+            mock_pick.assert_called_once_with("spectra")
+
+        # When interactive is False, _popout asks for values
+        win.PP_InteractivemodeSwitch.setChecked(False)
+        assert win._interactive() is False
+        with patch.object(win, "_ask_cuts", return_value=None) as mock_ask:
+            win._popout("kinetics")
+            mock_ask.assert_called_once_with("kinetics")
+    finally:
+        win.close()
+
+
+def test_live_cuts_axes_limits_synced_with_contour():
+    _require_qt()
+    import numpy as np
+    import pymorgan as pm
+    from pyrate_ta.gui.main_window import MainWindow
+
+    win = MainWindow()
+    try:
+        t = np.linspace(0.1, 50.0, 30)
+        probe = np.linspace(400.0, 700.0, 25)
+        ds = pm.Dataset1D(np.ones((30, 25, 1)), t, probe, {})
+        win.dataset = ds
+        win.render_all()
+
+        main = win.axis("main")
+        spectra = win.axis("spectra")
+        kinetics = win.axis("kinetics")
+
+        # 1. Spectra probe X-limits must match main contour X-limits
+        assert np.isclose(spectra.get_xlim()[0], main.get_xlim()[0])
+        assert np.isclose(spectra.get_xlim()[1], main.get_xlim()[1])
+
+        # 2. Kinetics delay Y-limits must match main contour Y-limits
+        assert np.isclose(kinetics.get_ylim()[0], main.get_ylim()[0])
+        assert np.isclose(kinetics.get_ylim()[1], main.get_ylim()[1])
+
+        # 3. Change limits via plot controls and verify _apply_view_limits syncs all panels
+        win.plot_controls.x_min.setValue(450.0)
+        win.plot_controls.x_max.setValue(650.0)
+        win.plot_controls.y_min.setValue(1.0)
+        win.plot_controls.y_max.setValue(20.0)
+        win._apply_view_limits()
+
+        assert np.isclose(main.get_xlim()[0], 450.0)
+        assert np.isclose(main.get_xlim()[1], 650.0)
+        assert np.isclose(spectra.get_xlim()[0], 450.0)
+        assert np.isclose(spectra.get_xlim()[1], 650.0)
+
+        assert np.isclose(main.get_ylim()[0], 1.0)
+        assert np.isclose(main.get_ylim()[1], 20.0)
+        assert np.isclose(kinetics.get_ylim()[0], 1.0)
+        assert np.isclose(kinetics.get_ylim()[1], 20.0)
+
+        # 4. Release crosshair and ensure live cuts retain synced limits
+        win._on_crosshair_released(500.0, 5.0)
+        assert np.isclose(spectra.get_xlim()[0], 450.0)
+        assert np.isclose(spectra.get_xlim()[1], 650.0)
+        assert np.isclose(kinetics.get_ylim()[0], 1.0)
+        assert np.isclose(kinetics.get_ylim()[1], 20.0)
+    finally:
+        win.close()
 

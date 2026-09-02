@@ -93,9 +93,32 @@ class DataTabMixin:
 
         if self.plot_controls is not None:
             self.plot_controls.set_dataset(self.dataset)
+            self._apply_default_time_limits_to_plot_controls()
         self._set_dataset_widgets_enabled(True)
         self._sync_model_tables()
         self.render_all()
+
+    def _apply_default_time_limits_to_plot_controls(self):
+        """Apply the default time_limits setting to the delay axis plot controls."""
+        if self.plot_controls is None or self.dataset is None:
+            return
+        import pyrate_ta as pr
+
+        delays = np.asarray(self.dataset.delays, dtype=float)
+        s = pr.get_settings()
+        if s.time_limits is not None:
+            t_lo = float(np.nanmin(delays)) if s.time_limits[0] is None else float(s.time_limits[0])
+            t_hi = float(np.nanmax(delays)) if s.time_limits[1] is None else float(s.time_limits[1])
+            if hasattr(self.plot_controls, "y_min") and self.plot_controls.y_min is not None:
+                self.plot_controls.y_min.blockSignals(True)
+                self.plot_controls.y_min.setValue(t_lo)
+                self.plot_controls.y_min.blockSignals(False)
+            if hasattr(self.plot_controls, "y_max") and self.plot_controls.y_max is not None:
+                self.plot_controls.y_max.blockSignals(True)
+                self.plot_controls.y_max.setValue(t_hi)
+                self.plot_controls.y_max.blockSignals(False)
+            if hasattr(self.plot_controls, "_refresh_zref"):
+                self.plot_controls._refresh_zref()
 
     def clear_data(self):
         """Unload the dataset and blank every embedded axis."""
@@ -426,6 +449,11 @@ class DataTabMixin:
         spectra = self._axes.get("spectra")
 
         if main is not None and spectra is not None:
+            try:
+                spectra.set_xscale(main.get_xscale(), **scale_kwargs(main, axis="x"))
+                spectra.set_xlim(main.get_xlim())
+            except Exception:
+                logger.debug("could not match the spectra probe axis", exc_info=True)
             main.set_xlabel("")
             main.tick_params(axis="x", labelbottom=False)
             if not getattr(spectra, "_has_spacer", False):
@@ -444,7 +472,7 @@ class DataTabMixin:
 
         if main is not None and kinetics is not None:
             try:
-                kinetics.set_yscale(main.get_yscale(), **scale_kwargs(main))
+                kinetics.set_yscale(main.get_yscale(), **scale_kwargs(main, axis="y"))
                 kinetics.set_ylim(main.get_ylim())
             except Exception:
                 logger.debug("could not match the kinetics delay axis", exc_info=True)
@@ -521,6 +549,16 @@ class DataTabMixin:
         except Exception:
             logger.debug("plot_kinetics preview failed", exc_info=True)
 
+        main = self._axes.get("main") if getattr(self, "_axes", None) else None
+        if main is not None:
+            try:
+                ax.set_yscale(main.get_yscale(), **scale_kwargs(main, axis="y"))
+                ax.set_ylim(main.get_ylim())
+            except Exception:
+                pass
+        elif self.plot_controls is not None:
+            _safe_set_limits(ax, ax.get_xlim(), self.plot_controls.ylim())
+
     def _render_spectra(self, rebuild: bool = True):
         """Transient spectra: data as points, fit as a line over them."""
         if self.dataset is None:
@@ -542,6 +580,16 @@ class DataTabMixin:
             self._overlay_fit(ax, "spectra", delays, fit_style)
         except Exception:
             logger.debug("plot_spectra preview failed", exc_info=True)
+
+        main = self._axes.get("main") if getattr(self, "_axes", None) else None
+        if main is not None:
+            try:
+                ax.set_xscale(main.get_xscale(), **scale_kwargs(main, axis="x"))
+                ax.set_xlim(main.get_xlim())
+            except Exception:
+                pass
+        elif self.plot_controls is not None:
+            _safe_set_limits(ax, self.plot_controls.xlim(), ax.get_ylim())
 
     def _overlay_fit(self, ax, kind: str, cuts, style: dict):
         """Draw the fitted surface over the data, at the same cuts.
@@ -615,10 +663,23 @@ class DataTabMixin:
                     pass
 
     def _apply_view_limits(self):
-        """Re-apply the panel X/Y limits to the contour without re-plotting."""
+        """Re-apply the panel X/Y limits to the contour and live cut traces without re-plotting."""
         if self.dataset is None or self.plot_controls is None or not getattr(self, "_axes", None):
             return
-        _safe_set_limits(self.axis("main"), self.plot_controls.xlim(), self.plot_controls.ylim())
+        main = self.axis("main")
+        kinetics = self.axis("kinetics")
+        spectra = self.axis("spectra")
+        xlim = self.plot_controls.xlim()
+        ylim = self.plot_controls.ylim()
+
+        if main is not None:
+            _safe_set_limits(main, xlim, ylim)
+        if spectra is not None:
+            _safe_set_limits(spectra, xlim, spectra.get_ylim())
+        if kinetics is not None:
+            _safe_set_limits(kinetics, kinetics.get_xlim(), ylim)
+
+        self._tidy_shared_axes()
         self.PlotArea.canvas.draw_idle()
 
     # ------------------------------------------------------------------ #
@@ -702,6 +763,93 @@ class DataTabMixin:
             )
         return values or None
 
+    def _interactive(self) -> bool:
+        """Whether the Interactive tick box is checked (pick cuts on the map)."""
+        chk = (
+            getattr(self, "PP_InteractivemodeSwitch", None)
+            or getattr(self, "PP_Interactive_TickBox", None)
+        )
+        return bool(chk.isChecked()) if chk is not None else False
+
+    def _pick_cut(self, kind: str):
+        """Pick kinetic/spectral cut positions by clicking the embedded contour.
+
+        Kinetic cuts read the probe (X) coordinate, spectral cuts the delay (Y).
+        Left-click adds a guide-line, right-click removes the last, Enter plots the
+        sorted cuts in a new figure, Escape cancels.
+        """
+        if self.dataset is None:
+            return
+
+        from pymorgan.gui.picker import ContourPicker
+
+        ax = self.axis("main") if getattr(self, "_axes", None) else getattr(self.PlotArea, "ax", None)
+        if ax is None:
+            return
+        axis = "x" if kind == "kinetics" else "y"
+        what = "probe positions" if kind == "kinetics" else "delays"
+        if hasattr(self, "statusBar") and self.statusBar():
+            self.statusBar().showMessage(
+                f"Interactive {kind}: left-click to add {what}, right-click to remove the "
+                "last, Enter to plot, Esc to cancel."
+            )
+
+        def done(values):
+            self._picker = None
+            if not values:
+                if hasattr(self, "statusBar") and self.statusBar():
+                    self.statusBar().showMessage("Interactive selection cancelled.")
+                return
+            if hasattr(self, "statusBar") and self.statusBar():
+                self.statusBar().clearMessage()
+            self._plot_cut_traces(kind, values)
+
+        canvas = getattr(self.PlotArea, "canvas", None)
+        if canvas is not None:
+            self._picker = ContourPicker(canvas, ax, axis, done).start()
+
+    def _plot_cut_traces(self, kind: str, cuts: list[float]):
+        """Plot kinetic or spectral cut traces in a new figure window with optional residuals."""
+        if not cuts or self.dataset is None:
+            return
+        import matplotlib.pyplot as plt
+
+        pm.apply_style()
+        fit = getattr(self, "fit_result", None)
+        incl_res_cb = getattr(self, "PP_IncludeResiduals", None)
+        incl_res = bool(incl_res_cb.isChecked()) if incl_res_cb is not None else False
+
+        if incl_res and fit is None:
+            QMessageBox.information(
+                self,
+                "No fit result",
+                f"No fit result available yet to calculate residuals; plotting {kind} only.",
+            )
+
+        if kind == "kinetics":
+            from ...plot.traces import plot_kinetics_with_residuals
+
+            plot_kinetics_with_residuals(
+                self.dataset,
+                cuts,
+                fit=fit,
+                incl_residuals=incl_res,
+                normY=self._norm(),
+                doSmooth=self._smooth_value(),
+            )
+        else:
+            from ...plot.traces import plot_spectra_with_residuals
+
+            plot_spectra_with_residuals(
+                self.dataset,
+                cuts,
+                fit=fit,
+                incl_residuals=incl_res,
+                normY=self._norm(),
+                doSmooth=self._smooth_value(),
+            )
+        plt.show(block=False)
+
     def _popout(self, kind: str):
         """Open one of the standard PyMORGAN figures in its own window."""
         if self.dataset is None:
@@ -716,55 +864,21 @@ class DataTabMixin:
             elif kind == "surface":
                 self.dataset.plot_surface()
             elif kind == "kinetics":
+                if self._interactive():
+                    self._pick_cut("kinetics")
+                    return
                 cuts = self._ask_cuts(kind)
                 if not cuts:
                     return
-                fit = getattr(self, "fit_result", None)
-                incl_res_cb = getattr(self, "PP_IncludeResiduals", None)
-                incl_res = bool(incl_res_cb.isChecked()) if incl_res_cb is not None else False
-
-                if incl_res and fit is None:
-                    QMessageBox.information(
-                        self,
-                        "No fit result",
-                        "No fit result available yet to calculate residuals; plotting kinetic traces only.",
-                    )
-
-                from ...plot.traces import plot_kinetics_with_residuals
-
-                plot_kinetics_with_residuals(
-                    self.dataset,
-                    cuts,
-                    fit=fit,
-                    incl_residuals=incl_res,
-                    normY=self._norm(),
-                    doSmooth=self._smooth_value(),
-                )
+                self._plot_cut_traces("kinetics", cuts)
             elif kind == "spectra":
+                if self._interactive():
+                    self._pick_cut("spectra")
+                    return
                 cuts = self._ask_cuts(kind)
                 if not cuts:
                     return
-                fit = getattr(self, "fit_result", None)
-                incl_res_cb = getattr(self, "PP_IncludeResiduals", None)
-                incl_res = bool(incl_res_cb.isChecked()) if incl_res_cb is not None else False
-
-                if incl_res and fit is None:
-                    QMessageBox.information(
-                        self,
-                        "No fit result",
-                        "No fit result available yet to calculate residuals; plotting transient spectra only.",
-                    )
-
-                from ...plot.traces import plot_spectra_with_residuals
-
-                plot_spectra_with_residuals(
-                    self.dataset,
-                    cuts,
-                    fit=fit,
-                    incl_residuals=incl_res,
-                    normY=self._norm(),
-                    doSmooth=self._smooth_value(),
-                )
+                self._plot_cut_traces("spectra", cuts)
             elif kind in ("trio", "data_fit_residuals"):
                 fit = getattr(self, "fit_result", None)
                 if fit is None:

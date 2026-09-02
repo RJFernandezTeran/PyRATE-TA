@@ -715,7 +715,7 @@
             <item>
              <widget class="QGroupBox" name="LDAGroup">
               <property name="title">
-               <string>LDA Settings &amp; Control</string>
+               <string>Settings and Control</string>
               </property>
               <layout class="QFormLayout" name="ldaFormLayout">
                <property name="horizontalSpacing">
@@ -948,25 +948,48 @@
                  </widget>
                 </item>
                 <item row="10" column="0" colspan="2">
-                 <widget class="QCheckBox" name="LDAPeaksCheckBox">
-                  <property name="toolTip">
-                   <string>Automatically locate major lifetime peak centroids from A(tau)</string>
-                  </property>
-                  <property name="text">
-                   <string>Auto-detect lifetime peak centroids</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="11" column="0" colspan="2">
-                 <widget class="QPushButton" name="LDACitationsButton">
-                  <property name="toolTip">
-                   <string>Show literature citations for the selected LDA algorithms</string>
-                  </property>
-                  <property name="text">
-                   <string>Literature Citations...</string>
-                  </property>
-                 </widget>
-                </item>
+                  <widget class="QCheckBox" name="LDAPeaksCheckBox">
+                   <property name="toolTip">
+                    <string>Automatically locate and annotate major lifetime peak centroids</string>
+                   </property>
+                   <property name="text">
+                    <string>Auto-detect lifetime peak centroids</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="11" column="0" colspan="2">
+                  <widget class="QCheckBox" name="LDADynamicalContentCheckBox">
+                   <property name="toolTip">
+                    <string>Plot dynamical content D(tau) = sqrt(int S^2 dlambda) instead of absolute integral A(tau) = int |S| dlambda</string>
+                   </property>
+                   <property name="text">
+                    <string>Plot dynamical content D(tau) = sqrt(int S^2)</string>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="12" column="0" colspan="2">
+                  <widget class="QCheckBox" name="LDARestrictFitCheckBox">
+                   <property name="toolTip">
+                    <string>Fit only the delay/probe window currently displayed</string>
+                   </property>
+                   <property name="text">
+                    <string>Restrict fit to display limits</string>
+                   </property>
+                   <property name="checked">
+                    <bool>true</bool>
+                   </property>
+                  </widget>
+                 </item>
+                 <item row="13" column="0" colspan="2">
+                  <widget class="QPushButton" name="LDACitationsButton">
+                   <property name="toolTip">
+                    <string>Show literature citations for the selected LDA algorithms</string>
+                   </property>
+                   <property name="text">
+                    <string>Literature Citations...</string>
+                   </property>
+                  </widget>
+                 </item>
               </layout>
              </widget>
             </item>
@@ -983,7 +1006,7 @@
             <item>
              <widget class="QGroupBox" name="LDAPlotsGroup">
               <property name="title">
-               <string>LDA Visualisation &amp; Plots</string>
+               <string>Visualisation and Plots</string>
               </property>
               <layout class="QVBoxLayout" name="ldaPlotsLayout">
                <property name="spacing">
