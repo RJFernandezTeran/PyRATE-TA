@@ -78,9 +78,11 @@ def _get_z_cbar_label(result: LDAResult, two_lines: bool = True) -> str:
 
 def plot_lda_map(
     result: LDAResult,
-    ax: plt.Axes | None = None,
+    ax: plt.Axes | tuple[plt.Axes, plt.Axes] | None = None,
+    ax_int: plt.Axes | None = None,
     cmap: str | None = None,
     discrete_taus: np.ndarray | list[float] | None = None,
+    discrete_tau_color: str = "#27ae60",
     title: str = "Lifetime Density Map",
     show_integrated: bool = True,
     metric: str = "abs",
@@ -95,8 +97,11 @@ def plot_lda_map(
     ----------
     result : LDAResult
         The LDA result.
-    ax : matplotlib.axes.Axes, optional
+    ax : matplotlib.axes.Axes or tuple of (Axes, Axes), optional
         If None, creates a 2-panel figure with synced Y-axis (Map + Integrated Dynamics).
+        Can also be passed as a tuple ``(ax_map, ax_int)``.
+    ax_int : matplotlib.axes.Axes, optional
+        Dedicated axis for the integrated dynamics panel when ``ax`` is the map axis.
     cmap : str, optional
         Colourmap (defaults to PyMORGAN's active 2D colormap setting).
     discrete_taus : sequence of float, optional
@@ -146,15 +151,19 @@ def plot_lda_map(
         panel_title = "Integrated Dynamics"
         panel_xlabel = r"Integrated $\int |S| \, d\lambda$"
 
-    if ax is None and show_integrated:
+    if isinstance(ax, (tuple, list)):
+        ax_map, ax_int = ax[0], ax[1]
+    elif ax is not None and ax_int is not None:
+        ax_map = ax
+    elif ax is not None:
+        ax_map = ax
+        ax_int = None
+    elif show_integrated:
         fig, (ax_map, ax_int) = plt.subplots(
             1, 2, figsize=(9.0, 5.5), sharey=True, gridspec_kw={"width_ratios": [3.2, 1.2]}
         )
-    elif ax is None:
-        fig, ax_map = plt.subplots(figsize=(7, 5))
-        ax_int = None
     else:
-        ax_map = ax
+        fig, ax_map = plt.subplots(figsize=(7, 5))
         ax_int = None
 
     # 2D Meshgrid for pcolormesh
@@ -264,9 +273,9 @@ def plot_lda_map(
     if discrete_taus is not None:
         for tau in discrete_taus:
             if np.isfinite(tau) and tau > 0:
-                ax_map.axhline(tau, color="black", linestyle="--", alpha=0.7, linewidth=1.0)
+                ax_map.axhline(tau, color=discrete_tau_color, linestyle="--", alpha=0.85, linewidth=1.2, zorder=4)
                 if ax_int is not None:
-                    ax_int.axhline(tau, color="black", linestyle="--", alpha=0.7, linewidth=1.0)
+                    ax_int.axhline(tau, color=discrete_tau_color, linestyle="--", alpha=0.85, linewidth=1.2, zorder=4)
 
     if ax_int is not None:
         return ax_map, ax_int
