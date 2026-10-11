@@ -1,7 +1,10 @@
-"""Kinetic trace plots with optional fitted overlay and linked residuals panel."""
+"""Kinetic and spectral trace plots with optional fitted overlay and linked residuals panel."""
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -11,6 +14,139 @@ from .matrix import as_dataset, as_fit_dataset
 from .style import overlay_styles
 
 logger = get_logger(__name__)
+
+
+def _artist_color(artist, default: str = "C0"):
+    """Extract a representative colour from an artist (Line2D or collection)."""
+    if hasattr(artist, "get_color"):
+        c = artist.get_color()
+        if c is not None:
+            return c
+    if hasattr(artist, "get_facecolor"):
+        c = artist.get_facecolor()
+        if c is not None and len(c) > 0:
+            return c[0] if hasattr(c, "__len__") and not isinstance(c, (str, tuple)) else c
+    return default
+
+
+def setup_trace_legend(
+    ax_trace: plt.Axes,
+    *,
+    fig: plt.Figure | None = None,
+    fit_lines: list | None = None,
+    legend_loc: str | None = None,
+    settings=None,
+) -> tuple[plt.matplotlib.legend.Legend | None, tuple[float, float, float, float] | None]:
+    """Build a clean, readable legend on ``ax_trace`` that avoids clipping.
+
+    By default, places the legend inside the trace axis (``loc='best'``) with a
+    readable font size, clear combined data+fit handles (marker + line), and
+    semi-transparent frame. If an outside location is explicitly requested,
+    reserves margin space so that the legend is never clipped off the figure boundary.
+
+    Parameters
+    ----------
+    ax_trace : matplotlib.axes.Axes
+        The primary trace axis where the legend is placed.
+    fig : matplotlib.figure.Figure, optional
+        Figure owning the axes.
+    fit_lines : list of matplotlib.lines.Line2D, optional
+        Fitted curve lines corresponding to the data curves.
+    legend_loc : str, optional
+        Target location for the legend. Defaults to ``'best'`` (inside).
+    settings : Settings, optional
+        PyRATE-TA settings object.
+
+    Returns
+    -------
+    (legend, layout_rect)
+        The created Legend object (or None) and a tight_layout rect tuple
+        (or None if inside layout is used).
+    """
+    import pymorgan as pm
+
+    s = get_settings() if settings is None else settings
+    pm_s = pm.get_settings()
+
+    # Determine desired location
+    if legend_loc is not None:
+        loc_str = str(legend_loc).strip()
+    else:
+        cfg_loc = str(getattr(s, "legend_location", "") or getattr(pm_s, "legend_location", "")).strip()
+        # For multi-panel traces with residuals, default outside locations to 'best'
+        # unless explicitly passed to the plotting function
+        if not cfg_loc or cfg_loc.lower().startswith("outside"):
+            loc_str = "best"
+        else:
+            loc_str = cfg_loc
+
+    # Retrieve existing data handles and labels
+    data_handles, data_labels = ax_trace.get_legend_handles_labels()
+    valid = [(h, l) for h, l in zip(data_handles, data_labels, strict=True) if l and not l.startswith("_")]
+    if not valid:
+        return None, None
+
+    valid_handles = [v[0] for v in valid]
+    valid_labels = [v[1] for v in valid]
+
+    # Optional pruning if configured in PyMORGAN settings
+    max_entries = int(getattr(pm_s, "max_legend_entries", 15))
+    if getattr(pm_s, "prune_legend", False) and len(valid) > max_entries:
+        idx = np.round(np.linspace(0, len(valid) - 1, max(1, max_entries))).astype(int)
+        idx = np.unique(idx)
+        valid_handles = [valid_handles[i] for i in idx]
+        valid_labels = [valid_labels[i] for i in idx]
+        if fit_lines is not None and len(fit_lines) == len(data_handles):
+            fit_lines = [fit_lines[i] for i in idx]
+
+    # Construct clean, highly readable handles
+    marker = str(getattr(s, "data_marker", "o"))
+    markersize = max(float(getattr(s, "data_markersize", 4.0)), 5.0)
+    fit_lw = max(float(getattr(s, "fit_linewidth", 1.2)), 1.5)
+    fit_ls = str(getattr(s, "fit_linestyle", "-"))
+
+    handles = []
+    has_fit = fit_lines is not None and len(fit_lines) == len(valid_handles)
+    for h in valid_handles:
+        c = _artist_color(h)
+        ls = fit_ls if has_fit else (h.get_linestyle() if hasattr(h, "get_linestyle") else "none")
+        m = marker if has_fit else (h.get_marker() if hasattr(h, "get_marker") else marker)
+        if str(m).lower() == "none" and not has_fit:
+            m = "none"
+        handles.append(
+            mlines.Line2D(
+                [],
+                [],
+                color=c,
+                marker=m if str(m) != "None" else marker,
+                markersize=markersize,
+                linestyle=ls if str(ls) != "None" else "-",
+                linewidth=fit_lw,
+            )
+        )
+
+    is_outside = loc_str.lower().startswith("outside")
+    if is_outside:
+        leg_kwargs = {"loc": "center left", "bbox_to_anchor": (1.02, 0.5)}
+        layout_rect = (0.0, 0.0, 0.80, 1.0)
+    else:
+        leg_kwargs = {"loc": loc_str}
+        layout_rect = None
+
+    leg = ax_trace.legend(
+        handles,
+        valid_labels,
+        frameon=True,
+        framealpha=0.85,
+        edgecolor="0.8",
+        fontsize="medium",
+        handlelength=2.2,
+        labelspacing=0.35,
+        borderpad=0.5,
+        **leg_kwargs,
+    )
+    leg.set_draggable(True)
+    return leg, layout_rect
 
 
 def plot_kinetics_with_residuals(
@@ -25,6 +161,7 @@ def plot_kinetics_with_residuals(
     doSmooth: int = 0,
     height_ratio: float | None = None,
     hspace: float | None = None,
+    legend_loc: str | None = None,
     settings=None,
     **kwargs,
 ):
@@ -55,6 +192,8 @@ def plot_kinetics_with_residuals(
         Defaults to ``Settings.residuals_height_ratio``.
     hspace : float, optional
         Vertical spacing between trace panel and residual panel. Defaults to ``Settings.residuals_hspace``.
+    legend_loc : str, optional
+        Location for the legend. Defaults to ``'best'`` (inside the trace panel).
     settings : Settings, optional
         PyRATE-TA settings object.
 
@@ -67,19 +206,30 @@ def plot_kinetics_with_residuals(
 
     pm.apply_style()
     s = get_settings() if settings is None else settings
+    pm_s = pm.get_settings()
     if height_ratio is None:
         height_ratio = float(getattr(s, "residuals_height_ratio", 4.0))
     if hspace is None:
         hspace = float(getattr(s, "residuals_hspace", 0.05))
 
+    # Resolve target legend location: default outside to "best" for multi-panel trace plots
+    if legend_loc is not None:
+        target_loc = str(legend_loc).strip()
+    else:
+        cfg_loc = str(getattr(s, "legend_location", "") or getattr(pm_s, "legend_location", "")).strip()
+        if not cfg_loc or cfg_loc.lower().startswith("outside"):
+            target_loc = "best"
+        else:
+            target_loc = cfg_loc
+
+    pm_plot_settings = replace(pm_s, legend_location=target_loc)
     data_style, fit_style = overlay_styles("kinetics", settings=s)
 
     show_residuals = incl_residuals and (fit is not None and getattr(fit, "R", None) is not None)
 
-
     if show_residuals:
         if ax is None:
-            figsize = tuple(getattr(pm.get_settings(), "kinetics_figsize", (7.5, 5.0)))
+            figsize = tuple(getattr(pm_s, "kinetics_figsize", (7.5, 5.0)))
             fig, (ax_trace, ax_res) = plt.subplots(
                 2,
                 1,
@@ -110,11 +260,13 @@ def plot_kinetics_with_residuals(
         normY=normY,
         doSmooth=doSmooth,
         show_xlabel=not show_residuals,
+        settings=pm_plot_settings,
         **data_style,
         **kwargs,
     )
 
     # 2. Overlay fit as solid lines
+    fit_lines = None
     if fit is not None:
         fit_ds = as_fit_dataset(fit, dataset)
         before_lines = list(ax_trace.lines)
@@ -124,39 +276,24 @@ def plot_kinetics_with_residuals(
             fig=fig,
             normY=normY,
             show_xlabel=not show_residuals,
+            settings=pm_plot_settings,
             **fit_style,
         )
-        # Suppress duplicate legend entries for fit lines and combine handles
         new_lines = [line for line in ax_trace.lines if line not in before_lines]
         for line in new_lines:
             line.set_label("_nolegend_")
+        fit_lines = new_lines
 
-        data_handles, data_labels = ax_trace.get_legend_handles_labels()
-        if len(data_handles) == len(new_lines):
-            handles = [(data_handles[i], new_lines[i]) for i in range(len(data_handles))]
-            labels = data_labels
-        else:
-            handles = data_handles
-            labels = data_labels
+    # 3. Build unified, legible legend on ax_trace
+    _, layout_rect = setup_trace_legend(
+        ax_trace,
+        fig=fig,
+        fit_lines=fit_lines,
+        legend_loc=target_loc,
+        settings=s,
+    )
 
-        if ax_trace.get_legend() is not None and handles:
-            from pymorgan.oneD.plot import legend_placement
-            leg_kwargs = legend_placement(None)
-            leg = ax_trace.legend(
-                handles,
-                labels,
-                frameon=False,
-                fontsize="small",
-                **leg_kwargs,
-            )
-            leg.set_draggable(True)
-            if "bbox_to_anchor" in leg_kwargs:
-                try:
-                    leg.set_in_layout(False)
-                except Exception:
-                    pass
-
-    # 3. Plot residuals below on linked x axis
+    # 4. Plot residuals below on linked x axis
     if show_residuals and ax_res is not None:
         weights = getattr(fit, "weights", None)
         statistic = getattr(fit, "statistic", None)
@@ -188,6 +325,7 @@ def plot_kinetics_with_residuals(
             fig=fig,
             normY=normY,
             show_xlabel=True,
+            settings=pm_plot_settings,
             **data_style,
         )
         if ax_res.get_legend() is not None:
@@ -208,7 +346,10 @@ def plot_kinetics_with_residuals(
                 import warnings
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    fig.tight_layout()
+                    if layout_rect is not None:
+                        fig.tight_layout(rect=layout_rect)
+                    else:
+                        fig.tight_layout()
             except Exception:
                 pass
 
@@ -219,7 +360,10 @@ def plot_kinetics_with_residuals(
             import warnings
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                fig.tight_layout()
+                if layout_rect is not None:
+                    fig.tight_layout(rect=layout_rect)
+                else:
+                    fig.tight_layout()
         except Exception:
             pass
 
@@ -238,6 +382,7 @@ def plot_spectra_with_residuals(
     doSmooth: int = 0,
     height_ratio: float | None = None,
     hspace: float | None = None,
+    legend_loc: str | None = None,
     settings=None,
     **kwargs,
 ):
@@ -268,6 +413,8 @@ def plot_spectra_with_residuals(
         Defaults to ``Settings.residuals_height_ratio``.
     hspace : float, optional
         Vertical spacing between trace panel and residual panel. Defaults to ``Settings.residuals_hspace``.
+    legend_loc : str, optional
+        Location for the legend. Defaults to ``'best'`` (inside the trace panel).
     settings : Settings, optional
         PyRATE-TA settings object.
 
@@ -280,18 +427,30 @@ def plot_spectra_with_residuals(
 
     pm.apply_style()
     s = get_settings() if settings is None else settings
+    pm_s = pm.get_settings()
     if height_ratio is None:
         height_ratio = float(getattr(s, "residuals_height_ratio", 4.0))
     if hspace is None:
         hspace = float(getattr(s, "residuals_hspace", 0.05))
 
+    # Resolve target legend location: default outside to "best" for multi-panel trace plots
+    if legend_loc is not None:
+        target_loc = str(legend_loc).strip()
+    else:
+        cfg_loc = str(getattr(s, "legend_location", "") or getattr(pm_s, "legend_location", "")).strip()
+        if not cfg_loc or cfg_loc.lower().startswith("outside"):
+            target_loc = "best"
+        else:
+            target_loc = cfg_loc
+
+    pm_plot_settings = replace(pm_s, legend_location=target_loc)
     data_style, fit_style = overlay_styles("spectra", settings=s)
 
     show_residuals = incl_residuals and (fit is not None and getattr(fit, "R", None) is not None)
 
     if show_residuals:
         if ax is None:
-            figsize = tuple(getattr(pm.get_settings(), "spectra_figsize", (7.5, 4.5)))
+            figsize = tuple(getattr(pm_s, "spectra_figsize", (7.5, 4.5)))
             fig, (ax_trace, ax_res) = plt.subplots(
                 2,
                 1,
@@ -322,11 +481,13 @@ def plot_spectra_with_residuals(
         normY=normY,
         doSmooth=doSmooth,
         show_xlabel=not show_residuals,
+        settings=pm_plot_settings,
         **data_style,
         **kwargs,
     )
 
     # 2. Overlay fit as solid lines
+    fit_lines = None
     if fit is not None:
         fit_ds = as_fit_dataset(fit, dataset)
         before_lines = list(ax_trace.lines)
@@ -336,39 +497,24 @@ def plot_spectra_with_residuals(
             fig=fig,
             normY=normY,
             show_xlabel=not show_residuals,
+            settings=pm_plot_settings,
             **fit_style,
         )
-        # Suppress duplicate legend entries for fit lines and combine handles
         new_lines = [line for line in ax_trace.lines if line not in before_lines]
         for line in new_lines:
             line.set_label("_nolegend_")
+        fit_lines = new_lines
 
-        data_handles, data_labels = ax_trace.get_legend_handles_labels()
-        if len(data_handles) == len(new_lines):
-            handles = [(data_handles[i], new_lines[i]) for i in range(len(data_handles))]
-            labels = data_labels
-        else:
-            handles = data_handles
-            labels = data_labels
+    # 3. Build unified, legible legend on ax_trace
+    _, layout_rect = setup_trace_legend(
+        ax_trace,
+        fig=fig,
+        fit_lines=fit_lines,
+        legend_loc=target_loc,
+        settings=s,
+    )
 
-        if ax_trace.get_legend() is not None and handles:
-            from pymorgan.oneD.plot import legend_placement
-            leg_kwargs = legend_placement(None)
-            leg = ax_trace.legend(
-                handles,
-                labels,
-                frameon=False,
-                fontsize="small",
-                **leg_kwargs,
-            )
-            leg.set_draggable(True)
-            if "bbox_to_anchor" in leg_kwargs:
-                try:
-                    leg.set_in_layout(False)
-                except Exception:
-                    pass
-
-    # 3. Plot residuals below on linked x axis
+    # 4. Plot residuals below on linked x axis
     if show_residuals and ax_res is not None:
         weights = getattr(fit, "weights", None)
         statistic = getattr(fit, "statistic", None)
@@ -400,6 +546,7 @@ def plot_spectra_with_residuals(
             fig=fig,
             normY=normY,
             show_xlabel=True,
+            settings=pm_plot_settings,
             **data_style,
         )
         if ax_res.get_legend() is not None:
@@ -420,7 +567,10 @@ def plot_spectra_with_residuals(
                 import warnings
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
-                    fig.tight_layout()
+                    if layout_rect is not None:
+                        fig.tight_layout(rect=layout_rect)
+                    else:
+                        fig.tight_layout()
             except Exception:
                 pass
 
@@ -431,11 +581,11 @@ def plot_spectra_with_residuals(
             import warnings
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                fig.tight_layout()
+                if layout_rect is not None:
+                    fig.tight_layout(rect=layout_rect)
+                else:
+                    fig.tight_layout()
         except Exception:
             pass
 
     return ax_trace
-
-
-

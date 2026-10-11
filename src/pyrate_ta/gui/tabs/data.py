@@ -633,34 +633,15 @@ class DataTabMixin:
         for line in new_lines:
             line.set_label("_nolegend_")
 
-        data_handles, data_labels = ax.get_legend_handles_labels()
-        if len(data_handles) == len(new_lines):
-            handles = [(data_handles[i], new_lines[i]) for i in range(len(data_handles))]
-            labels = data_labels
-        else:
-            handles = data_handles
-            labels = data_labels
+        from ...plot.traces import setup_trace_legend
 
-        if ax.get_legend() is not None and handles:
-            # Rebuilt, so its placement has to be asked for again -- from
-            # PyMORGAN, so the setting that governs every other legend governs
-            # this one too.
-            from pymorgan.oneD.plot import legend_placement
-            leg_kwargs = legend_placement(self.embedded_settings())
-
-            leg = ax.legend(
-                handles,
-                labels,
-                frameon=False,
-                fontsize="small",
-                **leg_kwargs,
-            )
-            leg.set_draggable(True)
-            if "bbox_to_anchor" in leg_kwargs:
-                try:
-                    leg.set_in_layout(False)
-                except Exception:
-                    pass
+        setup_trace_legend(
+            ax,
+            fig=self.PlotArea.figure,
+            fit_lines=new_lines,
+            legend_loc="best",
+            settings=self.embedded_settings(),
+        )
 
     def _apply_view_limits(self):
         """Re-apply the panel X/Y limits to the contour and live cut traces without re-plotting."""

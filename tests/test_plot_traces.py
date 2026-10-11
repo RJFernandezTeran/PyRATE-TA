@@ -101,10 +101,12 @@ def test_plot_kinetics_with_fit_and_residuals(sample_dataset_and_fit):
     # Verify residuals axis has no legend
     assert ax_res.get_legend() is None
 
-    # Verify trace legend is set to not be in layout (for tight layout compatibility)
+    # Verify trace legend is created, readable, and placed inside the plot
     legend = ax_trace.get_legend()
     assert legend is not None
-    assert legend.get_in_layout() is False
+    assert len(legend.get_texts()) == 1
+    assert "1500" in legend.get_texts()[0].get_text()
+    assert legend.get_frame_on() is True
 
     plt.close("all")
 
@@ -176,6 +178,31 @@ def test_plot_spectra_with_fit_and_residuals(sample_dataset_and_fit):
 
     # Verify residuals axis has no legend
     assert ax_res.get_legend() is None
+
+    # Verify trace legend is created and readable
+    legend = ax_trace.get_legend()
+    assert legend is not None
+    assert len(legend.get_texts()) == 1
+    assert legend.get_frame_on() is True
+
+    plt.close("all")
+
+
+def test_plot_traces_legend_locations(sample_dataset_and_fit):
+    from pyrate_ta.plot.traces import plot_spectra_with_residuals
+    ds, fit = sample_dataset_and_fit
+
+    # 1. Custom inside location
+    ax_tr_in, _ = plot_kinetics_with_residuals(ds, cuts=[1500.0], fit=fit, legend_loc="upper left")
+    leg_in = ax_tr_in.get_legend()
+    assert leg_in is not None
+
+    # 2. Outside location
+    ax_tr_out, _ = plot_spectra_with_residuals(ds, cuts=[2.0], fit=fit, legend_loc="outside right")
+    leg_out = ax_tr_out.get_legend()
+    assert leg_out is not None
+
+    plt.close("all")
 
 def test_plot_species_spectra_and_concentrations_target_model():
     """Target models should label species spectra and concentrations by species name only."""

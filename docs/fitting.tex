@@ -378,6 +378,42 @@ The format version is embedded in every file and checked on load: a file
 written by a newer PyRATE-TA that the current build cannot interpret raises rather
 than silently mis-reading it.
 
+\subsection{Steady-state spectra and pure positive species recovery (GSB and SE)}\label{sec:groundstate}
+
+In time-resolved transient absorption, the observed differential absorbance $\Delta A(t, \lambda)$ is a linear superposition of three distinct photophysical contributions:
+\begin{equation}
+  \Delta A(t, \lambda) = S_{\mathrm{ESA}}(t, \lambda) - a(t)\, \sigma_A(\lambda) - b(t)\, F(\lambda),
+\end{equation}
+where:
+\begin{itemize}
+  \item $S_{\mathrm{ESA}}(t, \lambda) \ge 0$ is the genuine excited-state absorption of transient intermediates, which is strictly non-negative.
+  \item $\sigma_A(\lambda) \ge 0$ is the steady-state ground-state absorption spectrum. When molecules are promoted to the excited state, ground-state depletion produces a negative \emph{Ground State Bleach} (GSB) feature with an amplitude $a(t) \ge 0$ proportional to the fraction of depleted ground state.
+  \item $F(\lambda) \ge 0$ is the steady-state fluorescence emission spectrum. Optical de-excitation induced by the probe pulse produces negative \emph{Stimulated Emission} (SE) with an amplitude $b(t) \ge 0$ matching the fluorescence profile.
+\end{itemize}
+
+Because GSB and SE introduce negative dips that overlap with positive ESA bands, raw evolution-associated spectra (EAS) or species-associated spectra (SAS) often appear distorted or drop below zero, complicating spectral identification and molar extinction coefficient estimation.
+
+\paragraph{Mathematical recovery of pure positive spectra.}
+When steady-state absorption ($\sigma_A$) and/or emission ($F$) spectra are provided, PyRATE-TA extracts pure positive species absorption spectra $S_{\mathrm{abs}}(\lambda) \ge 0$ using constrained non-negative least squares (NNLS) implemented in \code{pyrate_ta.fit.groundstate}:
+\begin{equation}
+  \min_{a, b \ge 0} \int_{\lambda \in \Lambda_{\mathrm{neg}}} \left| S_{\mathrm{diff}}(\lambda) + a\, \sigma_A(\lambda) + b\, F(\lambda) \right|^2 d\lambda,
+\end{equation}
+subject to the physical constraint:
+\begin{equation}
+  S_{\mathrm{abs}}(\lambda) = S_{\mathrm{diff}}(\lambda) + a\, \sigma_A(\lambda) + b\, F(\lambda) \ge 0 \quad \forall \lambda.
+\end{equation}
+Here $\Lambda_{\mathrm{neg}}$ denotes the spectral regions where the uncorrected difference spectrum $S_{\mathrm{diff}}$ drops below zero or exhibits prominent bleach valleys. Active-region quantile scaling guarantees that the recovery cancels negative bleach bands without artificially elevating or distorting positive ESA peaks where GSB is absent.
+
+\paragraph{Loading reference spectra.}
+Steady-state absorption and emission files can be loaded programmatically through \code{pyrate_ta.io.reference} or interactively via the GUI. Reference spectra are accepted in standard two-column ASCII formats (\code{.csv}, \code{.txt}, \code{.dat}), where lines beginning with \code{\#} or \code{\%} are treated as comments, column~1 contains wavelength coordinates in nanometres, and column~2 contains absorbance or emission intensity. Reference spectra are automatically resampled onto the transient dataset's probe wavelength axis using monotonic cubic spline interpolation.
+
+\paragraph{Interactive visualization.}
+Both the embedded species preview panel and the detached \textbf{Plot DAS/EAS/SAS} popout window include a toggle checkbox:
+\begin{center}
+  \textbf{[$\checkmark$] Recover pure positive spectra (GSB / SE)}
+\end{center}
+When enabled, the plots switch instantly from differential spectra to recovered positive absorption spectra $S_{\mathrm{abs}}(\lambda)$. In addition, the fitted ground-state bleach contribution ($-a\,\sigma_A$) and stimulated emission contribution ($-b\,F$) are plotted as dashed reference baselines, providing immediate visual confirmation of the de-bleaching quality.
+
 \subsection{Testing}
 
 Synthetic-recovery tests are the backbone of the test suite: build data from
@@ -386,3 +422,4 @@ tolerance. A fitting project without these is untested regardless of its line
 coverage. The failure modes are tested too --- a non-converged fit must be
 flagged rather than silently returned, and near-degenerate lifetimes must not
 produce exploding amplitudes without a warning.
+

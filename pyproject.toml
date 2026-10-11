@@ -35,12 +35,14 @@ gui-dev = ["pytest-qt>=4"]
 pymorgan = { path = "../PyMORGAN", editable = true }
 
 [project.scripts]
+pyrate-ta = "pyrate_ta.launcher:main"
 pyrate-ta-gui = "pyrate_ta.gui.app:main"
 pyrate-ta-edit-gui = "pyrate_ta.gui.designer:main"
 pyrate-ta-settings = "pyrate_ta.gui.settings_app:main"
 pyrate-ta-cite = "pyrate_ta.cite:print_citations"
-# Fonts are installed by PyMORGAN (``pymorgan-install-fonts``); PyRATE-TA uses the
-# same ones and deliberately does not ship a second installer.
+
+[project.gui-scripts]
+pyrate-ta-app = "pyrate_ta.launcher:main"
 
 [tool.hatch.version]
 path = "src/pyrate_ta/__about__.py"

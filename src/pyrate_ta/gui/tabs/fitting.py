@@ -17,6 +17,7 @@ the result, because restricting them changes what the fit saw.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 os.environ.setdefault("QT_API", "pyqt6")
 
@@ -504,6 +505,76 @@ class FitTabMixin:
 
         return as_fit_dataset(self.fit_result, self.dataset)
 
+    def _resolved_species_spectra_data(self, recover_gsb: bool | None = None):
+        """Resolve species dataset, component spectra (pure positive if GSB/SE enabled), and reference info.
+
+        Returns
+        -------
+        tuple: (species_ds, S_plot, Taus, TauErr, isFixTau, modelType, bleach_res, gs_spec, em_spec)
+        """
+        fit = getattr(self, "fit_result", None)
+        if fit is None or self.dataset is None:
+            return None
+
+        species_ds = self._species_dataset()
+        fit_probe = np.asarray(species_ds.probe, dtype=float)
+        Np_fit = len(fit_probe)
+
+        S_fit, Taus, TauErr, isFixTau, modelType = fit.as_species_args()
+        S_raw = np.asarray(S_fit, dtype=float)
+
+        if recover_gsb is None:
+            gsb_chk = getattr(self, "GSBRecoveryCheckBox", None)
+            recover_gsb = gsb_chk.isChecked() if gsb_chk is not None else False
+
+        if not recover_gsb:
+            return species_ds, S_raw, Taus, TauErr, isFixTau, modelType, None, None, None
+
+        full_probe = np.asarray(self.dataset.probe, dtype=float)
+
+        gs_spec = None
+        if getattr(self.dataset, "gs_spectrum", None) is not None:
+            gs_full = np.asarray(self.dataset.gs_spectrum, dtype=float)
+            if len(gs_full) == Np_fit and np.allclose(full_probe, fit_probe):
+                gs_spec = gs_full
+            else:
+                gs_spec = np.interp(fit_probe, full_probe, gs_full, left=0.0, right=0.0)
+
+        em_spec = None
+        if getattr(self.dataset, "em_spectrum", None) is not None:
+            em_full = np.asarray(self.dataset.em_spectrum, dtype=float)
+            if len(em_full) == Np_fit and np.allclose(full_probe, fit_probe):
+                em_spec = em_full
+            else:
+                em_spec = np.interp(fit_probe, full_probe, em_full, left=0.0, right=0.0)
+
+        # Fallback to early-time negative transient signal if no reference spectra were loaded
+        if (gs_spec is None or not np.any(gs_spec > 0)) and (em_spec is None or not np.any(em_spec > 0)):
+            Z_mat = np.asarray(self.dataset.Z)[:, :, 0] if np.ndim(self.dataset.Z) == 3 else np.asarray(self.dataset.Z)
+            t_arr = np.asarray(self.dataset.delays, dtype=float)
+            t_pos = t_arr > 0
+            early_D_full = Z_mat[t_pos, :][0, :] if np.sum(t_pos) > 0 else Z_mat[0, :]
+            if len(early_D_full) == Np_fit and np.allclose(full_probe, fit_probe):
+                early_D = early_D_full
+            else:
+                early_D = np.interp(fit_probe, full_probe, early_D_full, left=0.0, right=0.0)
+            est_gs = np.maximum(0.0, -early_D)
+            if np.any(est_gs > 0):
+                gs_spec = est_gs
+
+        from ...fit.groundstate import compute_absolute_spectra
+
+        bleach_res = compute_absolute_spectra(
+            S_raw,
+            gs_spectrum=gs_spec,
+            em_spectrum=em_spec,
+            gs_scale="auto",
+            em_scale="auto",
+        )
+        S_to_plot = bleach_res.S_abs
+
+        return species_ds, S_to_plot, Taus, TauErr, isFixTau, modelType, bleach_res, gs_spec, em_spec
+
     def _popout_species_spectra(self):
         """Open the fitted species spectra in their own window."""
         fit = getattr(self, "fit_result", None)
@@ -515,65 +586,43 @@ class FitTabMixin:
         pm.apply_style()
         do_smooth = self._smooth_value() if hasattr(self, "_smooth_value") else 0
         norm = self._norm() if hasattr(self, "_norm") else False
-        gsb_chk = getattr(self, "GSBRecoveryCheckBox", None)
-        show_gsb = gsb_chk.isChecked() if gsb_chk is not None else False
+
+        data_tuple = self._resolved_species_spectra_data()
+        if data_tuple is None:
+            return
+        species_ds, S_to_plot, Taus, TauErr, isFixTau, modelType, bleach_res, gs_spec, em_spec = data_tuple
 
         try:
-            ax = self._species_dataset().plot_species_spectra(
-                *fit.as_species_args(),
+            ax = species_ds.plot_species_spectra(
+                S_to_plot,
+                Taus,
+                TauErr,
+                isFixTau,
+                modelType,
                 doSmooth=do_smooth,
                 normY=norm,
                 species_labels=fit.species_labels() if hasattr(fit, "species_labels") else None,
                 **self._quoting_kwargs(),
             )
 
-            if show_gsb:
-                from ...fit.groundstate import compute_absolute_spectra
-
-                # Always use the fit's probe axis to avoid size mismatches
-                # when the fit was restricted to a sub-range of the dataset.
-                species_ds = self._species_dataset()
+            if bleach_res is not None:
                 fit_probe = np.asarray(species_ds.probe, dtype=float)
-                Np_fit = len(fit_probe)
+                gs_scale = np.max(bleach_res.gs_scale) if np.ndim(bleach_res.gs_scale) > 0 else float(bleach_res.gs_scale)
+                em_scale = np.max(bleach_res.em_scale) if np.ndim(bleach_res.em_scale) > 0 else float(bleach_res.em_scale)
 
-                if getattr(self.dataset, "gs_spectrum", None) is not None:
-                    gs_full = np.asarray(self.dataset.gs_spectrum, dtype=float)
-                    # Interpolate onto fit probe grid if sizes differ
-                    if len(gs_full) != Np_fit:
-                        gs_spectrum = np.interp(fit_probe, np.asarray(self.dataset.probe, dtype=float), gs_full)
-                    else:
-                        gs_spectrum = gs_full
-                else:
-                    Z_mat = np.asarray(self.dataset.Z)[:, :, 0] if np.ndim(self.dataset.Z) == 3 else np.asarray(self.dataset.Z)
-                    t_arr = np.asarray(self.dataset.delays, dtype=float)
-                    t_pos = t_arr > 0
-                    early_D_full = Z_mat[t_pos, :][0, :] if np.sum(t_pos) > 0 else Z_mat[0, :]
-                    # Restrict to fit probe range
-                    full_probe = np.asarray(self.dataset.probe, dtype=float)
-                    if len(early_D_full) != Np_fit:
-                        early_D = np.interp(fit_probe, full_probe, early_D_full)
-                    else:
-                        early_D = early_D_full
-                    gs_spectrum = np.maximum(0.0, -early_D)
+                if gs_spec is not None and np.any(gs_spec > 0) and gs_scale > 0:
+                    gsb_trace = -1.0 * (gs_spec / np.max(gs_spec)) if norm else -1.0 * gs_scale * gs_spec
+                    ax.plot(fit_probe, gsb_trace, "--", color="dimgray", linewidth=1.2, label="GSB (-1 × Abs)", zorder=1)
+                    ax.fill_between(fit_probe, gsb_trace, 0, alpha=0.15, color="dimgray", zorder=0)
 
-                if np.any(gs_spectrum > 0):
-                    _, a_scale, _ = compute_absolute_spectra(fit.S, gs_spectrum, gs_scale="auto")
-                    gsb_trace = -1.0 * a_scale * gs_spectrum
-                    if norm and np.max(np.abs(gsb_trace)) > 0:
-                        gsb_trace = gsb_trace / np.max(np.abs(gsb_trace))
-                    ax.fill_between(
-                        fit_probe,
-                        gsb_trace,
-                        0,
-                        alpha=0.25,
-                        color="dimgray",
-                        label="GSB (-1 × GS)",
-                        zorder=0,
-                    )
-                    ax.plot(fit_probe, gsb_trace, color="dimgray", linewidth=1.2, zorder=1)
-                    ax.legend(loc="best")
-                    if hasattr(ax.figure.canvas, "draw_idle"):
-                        ax.figure.canvas.draw_idle()
+                if em_spec is not None and np.any(em_spec > 0) and em_scale > 0:
+                    se_trace = -1.0 * (em_spec / np.max(em_spec)) if norm else -1.0 * em_scale * em_spec
+                    ax.plot(fit_probe, se_trace, ":", color="darkorchid", linewidth=1.2, label="SE (-1 × Em)", zorder=1)
+                    ax.fill_between(fit_probe, se_trace, 0, alpha=0.15, color="darkorchid", zorder=0)
+
+                ax.legend(loc="best")
+                if hasattr(ax.figure.canvas, "draw_idle"):
+                    ax.figure.canvas.draw_idle()
 
         except Exception as exc:
             logger.debug("species-spectra window failed", exc_info=True)
@@ -726,24 +775,49 @@ class FitTabMixin:
     def _render_species_spectra(self):
         """Replace the spectra panel with the fitted species spectra.
 
-        Drawn by PyMORGAN's own ``plot_species_spectra``, which is why the
-        result exposes ``as_species_args()``: the adapter is on this side, the
-        rendering stays upstream.
+        Drawn by PyMORGAN's own ``plot_species_spectra``, consuming pure positive
+        component spectra when GSB / SE recovery is active.
         """
         fit = self.fit_result
         if fit is None or self.dataset is None:
             return
+        data_tuple = self._resolved_species_spectra_data()
+        if data_tuple is None:
+            return
+        species_ds, S_to_plot, Taus, TauErr, isFixTau, modelType, bleach_res, gs_spec, em_spec = data_tuple
+
         ax = self.axis("spectra")
         ax.clear()
         try:
-            self._species_dataset().plot_species_spectra(
-                *fit.as_species_args(),
+            species_ds.plot_species_spectra(
+                S_to_plot,
+                Taus,
+                TauErr,
+                isFixTau,
+                modelType,
                 ax=ax,
                 fig=self.PlotArea.figure,
                 settings=self.embedded_settings(),
                 species_labels=fit.species_labels() if hasattr(fit, "species_labels") else None,
                 **self._quoting_kwargs(),
             )
+
+            if bleach_res is not None:
+                fit_probe = np.asarray(species_ds.probe, dtype=float)
+                gs_scale = np.max(bleach_res.gs_scale) if np.ndim(bleach_res.gs_scale) > 0 else float(bleach_res.gs_scale)
+                em_scale = np.max(bleach_res.em_scale) if np.ndim(bleach_res.em_scale) > 0 else float(bleach_res.em_scale)
+
+                if gs_spec is not None and np.any(gs_spec > 0) and gs_scale > 0:
+                    gsb_trace = -1.0 * gs_scale * gs_spec
+                    ax.plot(fit_probe, gsb_trace, "--", color="dimgray", linewidth=1.0, label="GSB (-1 × Abs)", zorder=1)
+                    ax.fill_between(fit_probe, gsb_trace, 0, alpha=0.15, color="dimgray", zorder=0)
+
+                if em_spec is not None and np.any(em_spec > 0) and em_scale > 0:
+                    se_trace = -1.0 * em_scale * em_spec
+                    ax.plot(fit_probe, se_trace, ":", color="darkorchid", linewidth=1.0, label="SE (-1 × Em)", zorder=1)
+                    ax.fill_between(fit_probe, se_trace, 0, alpha=0.15, color="darkorchid", zorder=0)
+
+                ax.legend(loc="best", fontsize="x-small")
 
         except Exception:
             logger.debug("species-spectra preview failed", exc_info=True)

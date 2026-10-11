@@ -48,7 +48,7 @@ from .matrix import as_dataset, as_fit_dataset, plot_data_fit_residuals, plot_ma
 from .monitor import plot_parameter_bars, plot_parameter_history
 from .scheme import plot_scheme, scheme_text
 from .style import overlay_styles, scale_kwargs
-from .traces import plot_kinetics_with_residuals, plot_spectra_with_residuals
+from .traces import plot_kinetics_with_residuals, plot_spectra_with_residuals, setup_trace_legend
 
 __all__ = [
     "plot_scheme",
@@ -59,6 +59,7 @@ __all__ = [
     "plot_concentrations",
     "plot_kinetics_with_residuals",
     "plot_spectra_with_residuals",
+    "setup_trace_legend",
     "plot_parameter_bars",
     "plot_parameter_history",
     "species_labels_for",

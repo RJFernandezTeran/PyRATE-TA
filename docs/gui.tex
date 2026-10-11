@@ -145,6 +145,14 @@ converges (buttons reopen them at will):
     button: DAS for parallel, EAS for sequential, SAS for target. The
     distinction is not cosmetic --- it is what the spectra may be interpreted
     as.
+
+    When steady-state absorption or emission reference files are loaded, both
+    the embedded preview and the detached species popout provide a
+    \textbf{Recover pure positive spectra (GSB / SE)} checkbox. Enabling it
+    de-bleaches the species spectra in real time via constrained NNLS, displaying
+    the reconstructed positive absorption bands $S_{\mathrm{abs}}(\lambda) \ge 0$
+    alongside the fitted bleach and stimulated emission reference baselines
+    (\S\ref{sec:groundstate}).
   \item[Concentration profiles] The populations $C(t)$ of the model itself: one
     of the few views PyMORGAN has no concept of, since they are never measured.
     Component $i$ carries the same colour as its spectrum, and the delay axis
@@ -153,6 +161,16 @@ converges (buttons reopen them at will):
     target model this is where the plot earns its keep: it shows \emph{when}
     each species is present, and therefore which spectrum can be trusted where.
 \end{description}
+
+\subsection{Software updates}\label{sec:gui:updates}
+
+PyRATE-TA shares PyMORGAN's automated update checking and deployment architecture:
+\begin{itemize}
+  \item \textbf{Passive background notification:} At launch, PyRATE-TA queries GitHub releases in the background (at most once every 24~hours). When a new release is available, a discreet status bar notification appears.
+  \item \textbf{On-demand check:} The \textbf{About} dialog (\textbf{Help $\to$ About PyRATE-TA}) provides a \textbf{Check for Updates\ldots} button to inspect release notes and query the repository directly.
+  \item \textbf{Direct installation:} When launched from a Windows standalone suite installation, users can download the latest installer directly within the application and execute the upgrade seamlessly.
+\end{itemize}
+
 
 \subsection{Layout is declared, not built}
 

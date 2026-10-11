@@ -70,7 +70,7 @@ def test_solve_lda_progress_callback():
     def callback(step, total, msg):
         calls.append((step, total, msg))
 
-    res = solve_lda(D, t=t, n_taus=10, alphas=[0.01, 0.1, 1.0], n_bootstraps=2, callback=callback)
+    _ = solve_lda(D, t=t, n_taus=10, alphas=[0.01, 0.1, 1.0], n_bootstraps=2, callback=callback)
     assert len(calls) == 5  # 3 alphas + 2 bootstraps
     assert calls[0][0] == 1
     assert calls[0][1] == 5
@@ -130,7 +130,8 @@ def test_lda_plots_follow_pymorgan_rules():
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
-    from pyrate_ta.plot.lda import plot_lda_map, plot_l_curve
+
+    from pyrate_ta.plot.lda import plot_l_curve, plot_lda_map
 
     t = np.linspace(0, 50, 30)
     D = np.exp(-t[:, None] / 10.0) @ np.array([[1.0, 2.0]])

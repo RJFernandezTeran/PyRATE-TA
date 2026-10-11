@@ -47,3 +47,66 @@ def test_groundstate_custom_scale():
     assert a == 0.5
     assert np.allclose(S_abs[:, 0], S_diff[:, 0] + 0.5 * gs)
     assert np.allclose(S_abs[:, 1], S_diff[:, 1] + 0.5 * gs)
+
+
+def test_groundstate_gsb_and_se_recovery():
+    """Test recovering pure positive spectra from both GSB and SE."""
+    # Probe grid: 400 to 700 nm
+    probe = np.linspace(400, 700, 61)
+
+    # Simulated ground-state absorption peak at 450 nm
+    gs = np.exp(-0.5 * ((probe - 450) / 25) ** 2)
+    # Simulated fluorescence emission peak at 550 nm
+    em = np.exp(-0.5 * ((probe - 550) / 30) ** 2)
+
+    # Pure positive excited-state absorption (ESA) with peak at 620 nm
+    pure_esa = 0.8 * np.exp(-0.5 * ((probe - 620) / 35) ** 2)
+
+    # Observed difference spectrum: ESA - a*GS - b*SE
+    # Component 1 has both bleach and SE
+    s_diff_1 = pure_esa - 0.6 * gs - 0.4 * em
+    # Component 2 has primarily bleach
+    s_diff_2 = 0.5 * pure_esa - 0.3 * gs
+
+    S_diff = np.column_stack([s_diff_1, s_diff_2])
+
+    res = compute_absolute_spectra(
+        S_diff,
+        gs_spectrum=gs,
+        em_spectrum=em,
+        gs_scale="auto",
+        em_scale="auto",
+    )
+
+    # 1. Pure positive recovery
+    assert np.all(res.S_abs >= -1e-12)
+    # 2. Both scale factors recovered
+    assert np.all(res.gs_scale > 0)
+    assert np.all(res.em_scale >= 0)
+    # 3. Bleach spectra are negative
+    assert np.all(res.bleach_spectra <= 1e-12)
+    # 4. Attribute and unpacking compatibility
+    s_abs, a_gs, a_em = res
+    assert np.allclose(s_abs, res.S_abs)
+
+
+def test_groundstate_emission_only_recovery():
+    """Test pure positive recovery when only emission spectrum is provided."""
+    probe = np.linspace(500, 700, 41)
+    em = np.exp(-0.5 * ((probe - 580) / 20) ** 2)
+    pure_esa = 0.5 * np.exp(-0.5 * ((probe - 650) / 25) ** 2)
+
+    # Only SE negative dip
+    S_diff = (pure_esa - 0.4 * em)[:, None]
+
+    res = compute_absolute_spectra(
+        S_diff,
+        gs_spectrum=None,
+        em_spectrum=em,
+        gs_scale="auto",
+        em_scale="auto",
+    )
+    assert np.all(res.S_abs >= -1e-12)
+    assert res.em_scale > 0
+    assert np.all(res.bleach_spectra <= 1e-12)
+
