@@ -19,6 +19,7 @@ os.environ.setdefault("QT_API", "pyqt6")
 
 from pathlib import Path
 
+import numpy as np
 import pymorgan as pm
 from PyQt6 import uic
 from PyQt6.QtCore import QTimer
@@ -86,6 +87,21 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self.DataLoadedLamp.set_state("off")
         self._set_dataset_widgets_enabled(False)
         self.statusBar().showMessage("No dataset loaded")
+        QTimer.singleShot(1500, self._start_bg_update_check)
+
+    def _start_bg_update_check(self):
+        """Perform a quiet, non-blocking background check for updates."""
+        try:
+            from pymorgan.gui.updater import check_for_updates_background
+
+            check_for_updates_background(
+                self,
+                github_url="https://github.com/RJFernandezTeran/PyRATE-TA",
+                current_version=pr.__version__,
+                app_name="PyRATE-TA",
+            )
+        except Exception:
+            pass
 
     # ------------------------------------------------------------------ #
     #                            Construction                            #
@@ -211,6 +227,11 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect("ShowSchemeButton", "clicked", self._popout_scheme)
         self._connect("PlotSpeciesSpectraButton", "clicked", self._popout_species_spectra)
         self._connect("PlotConcProfileButton", "clicked", self._popout_concentrations)
+        self._connect(
+            "GSBRecoveryCheckBox",
+            "toggled",
+            lambda *_: self._render_species_spectra() if getattr(self, "fit_result", None) is not None else None,
+        )
         from PyQt6.QtWidgets import QButtonGroup
         self._view_button_group = getattr(self, "PlotWhatButtonGroup", None)
         if self._view_button_group is None:
@@ -253,10 +274,36 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect("actionSaveFit", "triggered", lambda: self.save_fit_session(ask=True))
         self._connect("actionLoadFit", "triggered", self.load_fit_session)
         self._connect("actionLoadAbsSpectrum", "triggered", self.load_abs_spectrum)
+        self._connect("actionLoadEmSpectrum", "triggered", self.load_em_spectrum)
+        self._connect("actionClearRefSpectra", "triggered", self.clear_ref_spectra)
         self._connect("actionQuit", "triggered", self.close)
         self._connect("actionRestoreSize", "triggered", self._restore_default_size)
         self._connect("actionSettings", "triggered", self.open_settings_dialog)
         self._connect("actionAbout", "triggered", self._about)
+
+        menu_file = getattr(self, "menuFile", None)
+        if menu_file is not None:
+            from PyQt6.QtGui import QAction
+
+            menu_file.addSeparator()
+            act_pm = QAction("Open in PyMORGAN (Spectral Processing & 2D-IR)...", self)
+            act_pm.setToolTip("Launch PyMORGAN to process, chirp-correct, or stitch transient spectra")
+            act_pm.triggered.connect(self._launch_pymorgan)
+            menu_file.addAction(act_pm)
+            self.actionOpenPyMORGAN = act_pm
+
+    def _launch_pymorgan(self):
+        """Launch PyMORGAN, optionally passing the current dataset file."""
+        from pyrate_ta.io.pymorgan_bridge import launch_pymorgan
+
+        cur_file = getattr(self, "_current_path", None)
+        try:
+            launch_pymorgan(dataset_path=cur_file)
+            self.statusBar().showMessage("Launched PyMORGAN.", 5000)
+        except Exception as exc:
+            from PyQt6.QtWidgets import QMessageBox
+
+            QMessageBox.critical(self, "Launch Error", f"Could not launch PyMORGAN:\n{exc}")
 
     def _get_dialog_dir(self, start_dir: str | Path | None = None) -> str:
         """Resolve the directory for file dialogs: start_dir -> _last_dir -> default_datadir -> home.
@@ -317,76 +364,119 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
     def load_abs_spectrum(self):
         """Load a text-based steady-state absorption spectrum for GSB recovery.
 
-        The file must have two whitespace/comma-separated columns:
-        probe (nm or cm⁻¹) and absorbance.  The spectrum is interpolated onto
-        the current dataset's probe axis and stored as ``dataset.gs_spectrum``.
+        The spectrum is robustly parsed and interpolated onto the current
+        dataset's probe axis, stored as ``dataset.gs_spectrum``.
         """
         from PyQt6.QtWidgets import QFileDialog, QMessageBox
 
         if self.dataset is None:
-            QMessageBox.warning(self, "No dataset loaded",
-                                "Load a dataset first so the absorption spectrum "
-                                "can be mapped onto its probe axis.")
+            QMessageBox.warning(
+                self,
+                "No dataset loaded",
+                "Load a dataset first so the absorption spectrum can be mapped onto its probe axis.",
+            )
             return
 
         start = self._get_dialog_dir()
         path, _ = QFileDialog.getOpenFileName(
             self,
-            "Load Absorption Spectrum",
+            "Load Steady-State Absorption Spectrum",
             start,
-            "Text files (*.txt *.dat *.csv *.asc);;All files (*)",
+            "Text / Data files (*.txt *.dat *.csv *.tsv *.asc);;All files (*)",
         )
         if not path:
             return
         self._last_dir = str(Path(path).parent)
 
         try:
-            import numpy as np
+            from ..io.reference import interpolate_reference_spectrum, load_reference_spectrum
 
-            # Read, skipping comment lines (# or %)
-            data = np.genfromtxt(path, comments=["#", "%"], delimiter=None,
-                                 invalid_raise=False)
-            # Drop rows with any NaN
-            data = data[~np.any(np.isnan(data), axis=1)]
-            if data.ndim != 2 or data.shape[1] < 2:
-                raise ValueError("File must have at least two columns (probe, absorbance).")
-
-            x_raw = data[:, 0]
-            y_raw = data[:, 1]
-
-            # Sort by probe axis
-            order = np.argsort(x_raw)
-            x_raw, y_raw = x_raw[order], y_raw[order]
-
-            # Probe axis of the loaded dataset
+            x_raw, y_raw = load_reference_spectrum(path)
             probe_ds = np.asarray(self.dataset.probe, dtype=float)
-            probe_min, probe_max = probe_ds.min(), probe_ds.max()
-
-            # Clip the raw spectrum to the current window and interpolate
-            mask = (x_raw >= probe_min) & (x_raw <= probe_max)
-            if not np.any(mask):
-                raise ValueError(
-                    f"Spectrum probe range [{x_raw.min():.4g} – {x_raw.max():.4g}] "
-                    f"does not overlap with dataset probe window "
-                    f"[{probe_min:.4g} – {probe_max:.4g}]."
-                )
-
-            gs_on_grid = np.interp(probe_ds, x_raw, y_raw)
-            # Ensure non-negative (absorption cannot be negative)
-            gs_on_grid = np.clip(gs_on_grid, 0.0, None)
+            gs_on_grid = interpolate_reference_spectrum(x_raw, y_raw, probe_ds)
 
             self.dataset.gs_spectrum = gs_on_grid
+            self.dataset.gs_raw = (x_raw, y_raw)
+            self.dataset.gs_filename = Path(path).name
 
-            import os
             self.statusBar().showMessage(
-                f"Absorption spectrum loaded: {os.path.basename(path)} "
-                f"({len(probe_ds)} probe points, "
-                f"peak = {gs_on_grid.max():.4g})",
+                f"Absorption spectrum loaded: {Path(path).name} "
+                f"({len(x_raw)} raw points, mapped to {len(probe_ds)} probe channels)",
                 8000,
             )
+            self._on_reference_spectra_changed()
 
         except Exception as exc:
+            logger.debug("loading absorption spectrum failed", exc_info=True)
             QMessageBox.warning(self, "Load absorption spectrum failed", str(exc))
+
+    def load_em_spectrum(self):
+        """Load a text-based steady-state emission spectrum for stimulated emission recovery.
+
+        The spectrum is robustly parsed and interpolated onto the current
+        dataset's probe axis, stored as ``dataset.em_spectrum``.
+        """
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+
+        if self.dataset is None:
+            QMessageBox.warning(
+                self,
+                "No dataset loaded",
+                "Load a dataset first so the emission spectrum can be mapped onto its probe axis.",
+            )
+            return
+
+        start = self._get_dialog_dir()
+        path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Load Steady-State Emission Spectrum",
+            start,
+            "Text / Data files (*.txt *.dat *.csv *.tsv *.asc);;All files (*)",
+        )
+        if not path:
+            return
+        self._last_dir = str(Path(path).parent)
+
+        try:
+            from ..io.reference import interpolate_reference_spectrum, load_reference_spectrum
+
+            x_raw, y_raw = load_reference_spectrum(path)
+            probe_ds = np.asarray(self.dataset.probe, dtype=float)
+            em_on_grid = interpolate_reference_spectrum(x_raw, y_raw, probe_ds)
+
+            self.dataset.em_spectrum = em_on_grid
+            self.dataset.em_raw = (x_raw, y_raw)
+            self.dataset.em_filename = Path(path).name
+
+            self.statusBar().showMessage(
+                f"Emission spectrum loaded: {Path(path).name} "
+                f"({len(x_raw)} raw points, mapped to {len(probe_ds)} probe channels)",
+                8000,
+            )
+            self._on_reference_spectra_changed()
+
+        except Exception as exc:
+            logger.debug("loading emission spectrum failed", exc_info=True)
+            QMessageBox.warning(self, "Load emission spectrum failed", str(exc))
+
+    def clear_ref_spectra(self):
+        """Clear loaded steady-state absorption and emission reference spectra."""
+        if self.dataset is not None:
+            self.dataset.gs_spectrum = None
+            self.dataset.gs_raw = None
+            self.dataset.gs_filename = None
+            self.dataset.em_spectrum = None
+            self.dataset.em_raw = None
+            self.dataset.em_filename = None
+        self.statusBar().showMessage("Reference absorption and emission spectra cleared", 5000)
+        self._on_reference_spectra_changed()
+
+    def _on_reference_spectra_changed(self):
+        """Callback when absorption or emission reference spectra are loaded or cleared."""
+        gsb_chk = getattr(self, "GSBRecoveryCheckBox", None)
+        if gsb_chk is not None and gsb_chk.isChecked():
+            if hasattr(self, "_render_species_spectra"):
+                self._render_species_spectra()
 
     def open_settings_dialog(self):
         """Edit the settings live, in one dialog with two halves.

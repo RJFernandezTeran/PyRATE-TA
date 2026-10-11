@@ -680,10 +680,10 @@
                <item>
                 <widget class="QCheckBox" name="GSBRecoveryCheckBox">
                  <property name="toolTip">
-                  <string>Overlay ground-state bleach recovery spectrum (-1 * GS) on species spectra</string>
+                  <string>Recover pure positive component spectra by accounting for ground-state bleach (and stimulated emission)</string>
                  </property>
                  <property name="text">
-                  <string>Show GSB recovery spectrum (-1 × GS)</string>
+                  <string>Recover pure positive spectra (GSB / SE)</string>
                  </property>
                 </widget>
                </item>
@@ -2017,6 +2017,8 @@
     <addaction name="actionClear"/>
     <addaction name="separator"/>
     <addaction name="actionLoadAbsSpectrum"/>
+    <addaction name="actionLoadEmSpectrum"/>
+    <addaction name="actionClearRefSpectra"/>
     <addaction name="separator"/>
     <addaction name="actionSaveFit"/>
     <addaction name="actionLoadFit"/>
@@ -2070,7 +2072,23 @@
     <string>&amp;Load absorption spectrum...</string>
    </property>
    <property name="toolTip">
-    <string>Load a text-based steady-state absorption spectrum for GSB recovery overlay</string>
+    <string>Load a text-based steady-state absorption spectrum for GSB recovery</string>
+   </property>
+  </action>
+  <action name="actionLoadEmSpectrum">
+   <property name="text">
+    <string>&amp;Load emission spectrum...</string>
+   </property>
+   <property name="toolTip">
+    <string>Load a text-based steady-state emission spectrum for stimulated emission recovery</string>
+   </property>
+  </action>
+  <action name="actionClearRefSpectra">
+   <property name="text">
+    <string>&amp;Clear reference spectra</string>
+   </property>
+   <property name="toolTip">
+    <string>Clear loaded steady-state absorption and emission reference spectra</string>
    </property>
   </action>
   <action name="actionQuit">

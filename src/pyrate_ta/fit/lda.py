@@ -11,6 +11,8 @@ smoothness penalties, with L-curve corner detection and GCV alpha selection.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import numpy as np
 
 from ..cite import cite

@@ -139,7 +139,9 @@ class SettingsPanel(QTabWidget):
             btn = QPushButton("Browse…")
             btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
-            def _choose_dir(n=name, le=line_edit, label=spec.get("label", name)):
+            dir_label = spec.get("label", name)
+
+            def _choose_dir(n=name, le=line_edit, label=dir_label):
                 start = le.text().strip() or str(Path.home())
                 chosen = QFileDialog.getExistingDirectory(self, f"Select {label}", start)
                 if chosen:

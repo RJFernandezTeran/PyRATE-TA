@@ -7,6 +7,7 @@ import os
 os.environ.setdefault("QT_API", "pyqt6")
 
 import numpy as np
+import pymorgan as pm
 from PyQt6.QtWidgets import QMessageBox
 
 from pyrate_ta.fit.lda import solve_lda

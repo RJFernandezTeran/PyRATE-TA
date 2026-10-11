@@ -29,9 +29,9 @@ This module never imports Qt.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, fields
 from enum import StrEnum
-import math
 from pathlib import Path
 from typing import Any
 
@@ -657,8 +657,8 @@ def _coerce_field(annotation: Any, value: Any) -> Any:
                 if not is_upper and (flt == float("-inf") or math.isinf(flt) and flt < 0):
                     return None
                 return flt
-            except ValueError:
-                raise ValueError(f"invalid value {v!r} in tuple bounds")
+            except ValueError as err:
+                raise ValueError(f"invalid value {v!r} in tuple bounds") from err
 
         return (_coerce_bound(parts[0], is_upper=False), _coerce_bound(parts[1], is_upper=True))
     if "int" in text and "float" not in text and not isinstance(value, int):

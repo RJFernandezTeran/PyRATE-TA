@@ -146,6 +146,12 @@ def main(argv: list[str] | None = None) -> int:
     window.show()
 
     logger.info("PyRATE-TA GUI loaded in %.2f s", time.perf_counter() - t_start)
+    try:
+        from pymorgan.gui.console import hide_console
+
+        hide_console()
+    except Exception:
+        pass
     return app.exec()
 
 
