@@ -76,9 +76,6 @@ class Settings:
     # Default time limits for fitting in dataset time units: [min, max].
     # None (or "inf") for upper limit takes the maximum available delay.
     time_limits: tuple[float | None, float | None] = (0.2, None)
-    # Add a constant offset (an infinite-lifetime component) by default.
-    offset: bool = False
-
     # --- Solver ---------------------------------------------------------- #
     # Termination tolerance on the cost function.
     ftol: float = 1e-8
@@ -112,8 +109,6 @@ class Settings:
     noise_floor_fraction: float = 1e-3
 
     # --- Reporting -------------------------------------------------------- #
-    # Report 1-sigma uncertainties from the linearised covariance estimate.
-    report_uncertainties: bool = True
     # Warn when two fitted lifetimes come within this factor of each other,
     # where the eigenvector matrix becomes ill-conditioned.
     degeneracy_warn_ratio: float = 1.2
@@ -147,9 +142,6 @@ class Settings:
     residuals_height_ratio: float = 4.0
     # Small vertical space between trace panel and residual panel
     residuals_hspace: float = 0.05
-    n_contours: int = 40
-    asinh_pct: float = 5.0
-
 
     # Margins of the embedded 3x3 figure, in figure fractions. Tuned so the
     # axis labels fit without wasting the window on white space; the panel is
@@ -161,16 +153,6 @@ class Settings:
     # Gaps between the three panels, as a fraction of the average axis size.
     panel_hspace: float = 0.45
     panel_wspace: float = 0.32
-
-    # --- How results are quoted -------------------------------------------- #
-    # Show the 1-sigma uncertainty beside each lifetime (plot legends and the
-    # logged fit summary). Off quotes the value alone.
-    show_uncertainties: bool = True
-    # Round a value together with its uncertainty: the uncertainty to one
-    # significant figure and the value to that same decimal place, so
-    # 325.3 +/- 2.5 is quoted as 325 +/- 3. Keeps a fitted constant from being
-    # presented with more precision than its own uncertainty supports.
-    round_uncertainties: bool = True
 
     # --- Live fit monitor --------------------------------------------------- #
     # Show the parameters as they move, every N residual evaluations. 0 never
@@ -184,15 +166,7 @@ class Settings:
     fit_monitor_scale: str = "symlog"
 
     # --- GUI --------------------------------------------------------------- #
-    # Qt style; a "dark" token anywhere selects the dark palette ("Fusion Dark").
-    gui_theme: str = "Fusion"
-    # Splash-screen duration in seconds; 0 disables it.
-    splash_duration: float = 0.5
     # Default window geometry, and whether to restore it on the next start.
-    # Taller than wide-ish on purpose: the controls stack vertically and the
-    # plot grid is roughly square. The window is clipped to the available screen
-    # area at start-up, so asking for more height than a laptop has is safe --
-    # it simply gets what fits.
     window_width: int = 1010
     window_height: int = 860
     restore_window_size: bool = True
@@ -201,9 +175,7 @@ class Settings:
     table_default_ub: float = float("inf")
     table_decimals: int = 4
     new_rows_fixed: bool = False
-    # What happens once a fit finishes. The two figures a fit is normally read
-    # from -- the species spectra and the concentration profiles -- are opened
-    # automatically; the same buttons reopen them at any time.
+    # What happens once a fit finishes.
     plot_species_after_fit: bool = True
     plot_profiles_after_fit: bool = True
     plot_trio_after_fit: bool = True
@@ -218,6 +190,78 @@ class Settings:
     def plot_data_fit_residuals_after_fit(self, value: bool):
         self.plot_trio_after_fit = bool(value)
 
+    # --- Presentation properties (delegated to PyMORGAN) ------------------- #
+    @property
+    def asinh_pct(self) -> float:
+        try:
+            import pymorgan as pm
+
+            return float(getattr(pm.get_settings(), "asinh_pct", 5.0))
+        except Exception:
+            return 5.0
+
+    @asinh_pct.setter
+    def asinh_pct(self, value: float) -> None:
+        try:
+            import pymorgan as pm
+
+            pm.update_settings(asinh_pct=float(value))
+        except Exception:
+            pass
+
+    @property
+    def show_uncertainties(self) -> bool:
+        try:
+            import pymorgan as pm
+
+            return bool(getattr(pm.get_settings(), "show_uncertainties", True))
+        except Exception:
+            return True
+
+    @show_uncertainties.setter
+    def show_uncertainties(self, value: bool) -> None:
+        try:
+            import pymorgan as pm
+
+            pm.update_settings(show_uncertainties=bool(value))
+        except Exception:
+            pass
+
+    @property
+    def round_uncertainties(self) -> bool:
+        try:
+            import pymorgan as pm
+
+            return bool(getattr(pm.get_settings(), "round_uncertainties", True))
+        except Exception:
+            return True
+
+    @round_uncertainties.setter
+    def round_uncertainties(self, value: bool) -> None:
+        try:
+            import pymorgan as pm
+
+            pm.update_settings(round_uncertainties=bool(value))
+        except Exception:
+            pass
+
+    @property
+    def gui_theme(self) -> str:
+        try:
+            import pymorgan as pm
+
+            return str(getattr(pm.get_settings(), "gui_theme", "Fusion"))
+        except Exception:
+            return "Fusion"
+
+    @gui_theme.setter
+    def gui_theme(self, value: str) -> None:
+        try:
+            import pymorgan as pm
+
+            pm.update_settings(gui_theme=str(value))
+        except Exception:
+            pass
 
     # --- Paths ------------------------------------------------------------ #
     default_datadir: Path | None = None
@@ -278,13 +322,11 @@ class Settings:
             "n_components": "fit",
             "model_type": "fit",
             "time_limits": "fit",
-            "offset": "fit",
             # [solver]
             "ftol": "solver",
             "xtol": "solver",
             "max_iterations": "solver",
             "variable_projection": "solver",
-            "report_uncertainties": "solver",
             "degeneracy_warn_ratio": "solver",
             "use_noise_weights": "solver",
             "noise_floor_fraction": "solver",
@@ -308,23 +350,15 @@ class Settings:
             "fit_alpha": "plots",
             "residuals_height_ratio": "plots",
             "residuals_hspace": "plots",
-            "n_contours": "plots",
-            "asinh_pct": "plots",
             "panel_left": "plots",
-
-
             "panel_right": "plots",
             "panel_top": "plots",
             "panel_bottom": "plots",
             "panel_hspace": "plots",
             "panel_wspace": "plots",
+            # [gui]
             "fit_monitor_every": "gui",
             "fit_monitor_scale": "gui",
-            "show_uncertainties": "plots",
-            "round_uncertainties": "plots",
-            # [gui]
-            "gui_theme": "gui",
-            "splash_duration": "gui",
             "window_width": "gui",
             "window_height": "gui",
             "restore_window_size": "gui",
@@ -336,7 +370,6 @@ class Settings:
             "plot_profiles_after_fit": "gui",
             "plot_trio_after_fit": "gui",
             "open_scheme_after_fit": "gui",
-
             "autosave_session": "gui",
             # [paths]
             "default_datadir": "paths",
@@ -368,17 +401,12 @@ class Settings:
                 "Default time limits for fitting in dataset time units: [min, max] "
                 "(None/inf for upper limit takes the maximum available delay)."
             ),
-            "offset": (
-                "Deprecated: a non-decaying component is now created by entering a "
-                "lifetime of inf, not by this flag."
-            ),
             "ftol": "Termination tolerance on the cost function.",
             "xtol": "Termination tolerance on the parameter vector.",
             "max_iterations": "Cap on optimiser iterations; exceeding it is a non-convergence.",
             "variable_projection": (
                 "Solve the amplitudes in closed form. Off is a diagnostic, not a normal mode."
             ),
-            "report_uncertainties": "Report linearised 1-sigma uncertainties.",
             "degeneracy_warn_ratio": "Warn when two lifetimes come within this factor.",
             "use_noise_weights": (
                 "Weight residuals by the per-point noise, making the statistic a reduced "
@@ -405,9 +433,14 @@ class Settings:
             "fit_alpha": "Opacity of the fitted curve, 0 to 1.",
             "residuals_height_ratio": "Aspect ratio of kinetic trace plot height to residual plot height.",
             "residuals_hspace": "Vertical spacing between kinetic trace panel and residual panel.",
-            "gui_theme": 'Qt style; a "dark" token selects the dark palette.',
-
-            "splash_duration": "Splash-screen seconds; 0 disables it.",
+            "panel_left": "Figure-fraction margin for embedded preview (left).",
+            "panel_right": "Figure-fraction margin for embedded preview (right).",
+            "panel_top": "Figure-fraction margin for embedded preview (top).",
+            "panel_bottom": "Figure-fraction margin for embedded preview (bottom).",
+            "panel_hspace": "Figure-fraction vertical gap for embedded preview.",
+            "panel_wspace": "Figure-fraction horizontal gap for embedded preview.",
+            "fit_monitor_every": "Live parameter update every N evaluations (0 disables).",
+            "fit_monitor_scale": "Scale of monitor bars: symlog / log / linear.",
             "window_width": "Default window width in pixels.",
             "window_height": "Default window height in pixels.",
             "restore_window_size": "Restore the last window size on the next start.",
@@ -484,8 +517,6 @@ _SPEC_OVERRIDES: dict[str, dict[str, Any]] = {
             "limit takes max available delay."
         ),
     },
-    # ``offset`` is deliberately absent: an inf lifetime is the offset
-    # now, so the field is deprecated and hidden (see below).
     "ftol": {"label": "Cost tolerance", "kind": "float", "tab": "solver"},
     "xtol": {"label": "Parameter tolerance", "kind": "float", "tab": "solver"},
     "max_iterations": {
@@ -512,11 +543,6 @@ _SPEC_OVERRIDES: dict[str, dict[str, Any]] = {
         "tab": "fit",
         "tooltip": "Drop delays below this value (IRF mode 'Clip').",
     },
-    "report_uncertainties": {
-        "label": "Report uncertainties",
-        "kind": "bool",
-        "tab": "solver",
-    },
     "use_noise_weights": {
         "label": "Weight by noise",
         "kind": "bool",
@@ -532,7 +558,6 @@ _SPEC_OVERRIDES: dict[str, dict[str, Any]] = {
         "tab": "solver",
         "tooltip": "Clip noise values below this fraction of the median noise.",
     },
-    "offset": {"skip": True},  # deprecated: an inf lifetime is the offset now
     # LDA fields live in settings.toml as CLI/script defaults and are read by
     # the GUI LDA tab at start-up to pre-populate its own widgets.  They are
     # *not* shown in the settings dialog because those widgets are the canonical
@@ -544,17 +569,20 @@ _SPEC_OVERRIDES: dict[str, dict[str, Any]] = {
     "lda_regularisation": {"skip": True},
     "lda_alpha": {"skip": True},
     "lda_non_negative": {"skip": True},
-    # The themes are PyMORGAN's, and the list is only complete once the GUI has
-    # asked Qt what this machine actually has -- hence a callable.
-    "gui_theme": {"kind": "choice", "choices": lambda: _theme_choices()},
+    # Figure layout margins are internal layout parameters, skipped from the GUI panel.
+    "panel_left": {"skip": True},
+    "panel_right": {"skip": True},
+    "panel_top": {"skip": True},
+    "panel_bottom": {"skip": True},
+    "panel_hspace": {"skip": True},
+    "panel_wspace": {"skip": True},
+    # Window geometry is skipped from the GUI dialog since resizing happens via window handles.
+    "window_width": {"skip": True},
+    "window_height": {"skip": True},
+    "restore_window_size": {"skip": True},
     "fit_monitor_every": {"label": "Live parameter update every N evals", "min": 0, "max": 1000},
     "fit_monitor_scale": {"kind": "choice", "choices": ["symlog", "log", "linear"]},
-    "n_contours": {"label": "Default contour levels", "min": 2, "max": 500, "tab": "plots"},
-    "asinh_pct": {"label": "arcsinh linear threshold (%)", "min": 0.1, "max": 100.0, "tab": "plots"},
-
     "table_decimals": {"min": 1, "max": 12},
-    "window_width": {"min": 400, "max": 10000},
-    "window_height": {"min": 300, "max": 10000},
     "default_datadir": {
         "label": "Default data directory",
         "kind": "directory",
@@ -562,17 +590,6 @@ _SPEC_OVERRIDES: dict[str, dict[str, Any]] = {
         "tooltip": "Directory the file dialog opens in; empty means the home folder.",
     },
 }
-
-
-def _theme_choices() -> list[str]:
-    """Qt styles offered for ``gui_theme``, from PyMORGAN (never a second list)."""
-    try:
-        from pymorgan.settings import gui_theme_choices
-
-        return list(gui_theme_choices())
-    except Exception:  # pragma: no cover - PyMORGAN is a hard dependency
-        logger.debug("could not read the theme list from PyMORGAN", exc_info=True)
-        return ["Fusion", "Fusion Dark"]
 
 
 def _kind_of(annotation: Any) -> dict[str, Any]:
@@ -688,6 +705,19 @@ def set_settings(settings: Settings) -> Settings:
 
 def update_settings(**kwargs: Any) -> Settings:
     """Update named fields on the active settings, rejecting unknown names."""
+    # Forward aesthetic/PyMORGAN settings to PyMORGAN if passed
+    pm_forward = {}
+    for pm_key in ("asinh_pct", "show_uncertainties", "round_uncertainties", "gui_theme"):
+        if pm_key in kwargs:
+            pm_forward[pm_key] = kwargs.pop(pm_key)
+    if pm_forward:
+        try:
+            import pymorgan as pm
+
+            pm.update_settings(**pm_forward)
+        except Exception:
+            pass
+
     known = {f.name for f in fields(Settings)}
     unknown = set(kwargs) - known
     if unknown:

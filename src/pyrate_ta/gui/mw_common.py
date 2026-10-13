@@ -70,6 +70,7 @@ _DATASET_ENABLED_WIDGETS = [
     "LDACitationsButton",
     "LDADynamicalContentCheckBox",
     "LDARestrictFitCheckBox",
+    "PP_IncludeSS_CheckBox",
 ]
 
 
@@ -151,6 +152,10 @@ _TOOLTIPS = {
     "LDARestrictFitCheckBox": "Fit only the delay/probe window currently displayed",
     "LDACitationsButton": "Show literature citations for the selected LDA algorithms",
     "GSBRecoveryCheckBox": "Overlay ground-state bleach recovery spectrum (-1 * GS) on species spectra",
+    "PP_IncludeSS_CheckBox": (
+        "Include steady-state absorption and emission spectra in transient spectral cuts and EAS/SAS/DAS plots"
+    ),
+    "PP_ShowSSbutton": "Plot loaded steady-state absorption and/or emission spectra in a new window",
 }
 
 # Non-linear least-squares algorithms offered in the FitMethod combo, in the
@@ -347,6 +352,7 @@ _BUTTON_PALETTES: dict[str, str] = {
     "PlotLDASliceButton": "kinetics",
     "SaveLDAMapPDATButton": "load",
     "LDACitationsButton": "neutral",
+    "PP_ShowSSbutton": "neutral",
 }
 
 # The primary action buttons are set one step larger.

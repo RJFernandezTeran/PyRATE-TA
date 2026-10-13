@@ -199,7 +199,7 @@ def plot_data_fit_residuals(
     res_matrix = np.asarray(fit.R, dtype=float)
     res_ds = as_dataset(fit.t, probe_fit, res_matrix, dataset)
     res_ds.plot_contour(ax=ax_res, **res_kwargs)
-    res_label = f"(c) Residuals ({int(zscale_factor)}×)" if zscale_factor != 1.0 else "(c) Residuals"
+    res_label = f"(c) Residuals ({int(zscale_factor)}x)" if zscale_factor != 1.0 else "(c) Residuals"
     ax_res.set_title(res_label, fontweight="bold")
     ax_res.set_ylabel("")
     ax_res.tick_params(axis="y", labelleft=True)

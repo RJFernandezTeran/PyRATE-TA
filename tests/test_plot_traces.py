@@ -101,12 +101,18 @@ def test_plot_kinetics_with_fit_and_residuals(sample_dataset_and_fit):
     # Verify residuals axis has no legend
     assert ax_res.get_legend() is None
 
-    # Verify trace legend is created, readable, and placed inside the plot
+    # Verify trace legend is created, draggable, readable, and placed outside right by default
     legend = ax_trace.get_legend()
     assert legend is not None
     assert len(legend.get_texts()) == 1
     assert "1500" in legend.get_texts()[0].get_text()
     assert legend.get_frame_on() is True
+    assert legend.get_draggable() is True
+    fig = ax_trace.figure
+    fig.draw_without_rendering()
+    bbox = legend.get_window_extent().transformed(fig.transFigure.inverted())
+    assert bbox.x1 <= 1.0
+    assert bbox.x0 >= ax_trace.get_position().x1
 
     plt.close("all")
 
@@ -179,11 +185,17 @@ def test_plot_spectra_with_fit_and_residuals(sample_dataset_and_fit):
     # Verify residuals axis has no legend
     assert ax_res.get_legend() is None
 
-    # Verify trace legend is created and readable
+    # Verify trace legend is created, draggable, readable, and placed outside right by default
     legend = ax_trace.get_legend()
     assert legend is not None
     assert len(legend.get_texts()) == 1
     assert legend.get_frame_on() is True
+    assert legend.get_draggable() is True
+    fig = ax_trace.figure
+    fig.draw_without_rendering()
+    bbox = legend.get_window_extent().transformed(fig.transFigure.inverted())
+    assert bbox.x1 <= 1.0
+    assert bbox.x0 >= ax_trace.get_position().x1
 
     plt.close("all")
 
@@ -196,11 +208,23 @@ def test_plot_traces_legend_locations(sample_dataset_and_fit):
     ax_tr_in, _ = plot_kinetics_with_residuals(ds, cuts=[1500.0], fit=fit, legend_loc="upper left")
     leg_in = ax_tr_in.get_legend()
     assert leg_in is not None
+    assert leg_in.get_draggable() is True
+    fig_in = ax_tr_in.figure
+    fig_in.draw_without_rendering()
+    bbox_in = leg_in.get_window_extent().transformed(fig_in.transFigure.inverted())
+    pos_in = ax_tr_in.get_position()
+    assert bbox_in.x0 >= pos_in.x0 and bbox_in.x1 <= pos_in.x1
 
     # 2. Outside location
     ax_tr_out, _ = plot_spectra_with_residuals(ds, cuts=[2.0], fit=fit, legend_loc="outside right")
     leg_out = ax_tr_out.get_legend()
     assert leg_out is not None
+    assert leg_out.get_draggable() is True
+    fig_out = ax_tr_out.figure
+    fig_out.draw_without_rendering()
+    bbox_out = leg_out.get_window_extent().transformed(fig_out.transFigure.inverted())
+    assert bbox_out.x1 <= 1.0
+    assert bbox_out.x0 >= ax_tr_out.get_position().x1
 
     plt.close("all")
 
@@ -245,6 +269,55 @@ def test_plot_species_spectra_and_concentrations_target_model():
     assert spec_labels == ["Q", "I", "D"]
 
     plt.close("all")
+
+
+def test_plot_spectra_with_residuals_steady_state_overlay(sample_dataset_and_fit):
+    from pyrate_ta.plot.traces import plot_spectra_with_residuals
+
+    ds, fit = sample_dataset_and_fit
+    probe = ds.probe
+    abs_dict = {"X": probe, "Y": np.exp(-((probe - 1500) / 200) ** 2)}
+    em_dict = {"X": probe, "Y": np.exp(-((probe - 1700) / 150) ** 2)}
+
+    # Without residuals
+    ax = plot_spectra_with_residuals(ds, cuts=[1.0, 5.0], Abs=abs_dict, Em=em_dict)
+    fig = ax.figure
+    # Twin axis exists for steady state
+    assert len(fig.axes) == 2
+    twin_ax = fig.axes[1]
+    assert twin_ax.get_legend() is not None
+    twin_labels = [t.get_text() for t in twin_ax.get_legend().get_texts()]
+    assert "Abs." in twin_labels
+    assert "Em." in twin_labels
+
+    # With residuals
+    ax_trace, ax_res = plot_spectra_with_residuals(
+        ds, cuts=[1.0, 5.0], fit=fit, incl_residuals=True, Abs=abs_dict, Em=em_dict
+    )
+    fig_res = ax_trace.figure
+    assert len(fig_res.axes) == 3  # ax_trace, twin_ax, ax_res
+    assert ax_res.get_legend() is None
+
+    plt.close("all")
+
+
+def test_plot_species_spectra_steady_state_overlay(sample_dataset_and_fit):
+    ds, fit = sample_dataset_and_fit
+    probe = ds.probe
+    abs_dict = {"X": probe, "Y": np.exp(-((probe - 1500) / 200) ** 2)}
+    em_dict = {"X": probe, "Y": np.exp(-((probe - 1700) / 150) ** 2)}
+
+    ax = ds.plot_species_spectra(*fit.as_species_args(), Abs=abs_dict, Em=em_dict)
+    fig = ax.figure
+    assert len(fig.axes) == 2
+    twin_ax = fig.axes[1]
+    assert twin_ax.get_legend() is not None
+    twin_labels = [t.get_text() for t in twin_ax.get_legend().get_texts()]
+    assert "Abs." in twin_labels
+    assert "Em." in twin_labels
+
+    plt.close("all")
+
 
 
 

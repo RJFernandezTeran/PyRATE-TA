@@ -12,10 +12,12 @@ import sys
 def main(argv: list[str] | None = None) -> int:
     """Launch the PyRATE-TA GUI with terminal suppression."""
     try:
+        from pymorgan.fonts import ensure_fonts_installed
         from pymorgan.gui.console import hide_console, set_windows_app_id
 
         set_windows_app_id("PyRATE-TA.GUI")
         hide_console()
+        ensure_fonts_installed(quiet=True)
     except Exception:
         pass
 

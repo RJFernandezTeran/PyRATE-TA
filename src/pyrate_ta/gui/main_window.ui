@@ -1120,7 +1120,7 @@
           <property name="maximumSize">
            <size>
             <width>380</width>
-            <height>180</height>
+            <height>215</height>
            </size>
           </property>
           <property name="title">
@@ -1209,6 +1209,26 @@
             <widget class="QPushButton" name="PP_ContourplotButton">
              <property name="text">
               <string>Contour Plots</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QCheckBox" name="PP_IncludeSS_CheckBox">
+             <property name="toolTip">
+              <string>Include steady-state absorption and emission spectra in transient spectral cuts and EAS/SAS/DAS plots</string>
+             </property>
+             <property name="text">
+              <string>Include SS-spectra</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QPushButton" name="PP_ShowSSbutton">
+             <property name="toolTip">
+              <string>Plot loaded steady-state absorption and/or emission spectra in a new window</string>
+             </property>
+             <property name="text">
+              <string>Show SS-spectra</string>
              </property>
             </widget>
            </item>
@@ -2019,6 +2039,7 @@
     <addaction name="actionLoadAbsSpectrum"/>
     <addaction name="actionLoadEmSpectrum"/>
     <addaction name="actionClearRefSpectra"/>
+    <addaction name="actionPlotSteadyState"/>
     <addaction name="separator"/>
     <addaction name="actionSaveFit"/>
     <addaction name="actionLoadFit"/>
@@ -2089,6 +2110,14 @@
    </property>
    <property name="toolTip">
     <string>Clear loaded steady-state absorption and emission reference spectra</string>
+   </property>
+  </action>
+  <action name="actionPlotSteadyState">
+   <property name="text">
+    <string>&amp;Show steady-state spectra...</string>
+   </property>
+   <property name="toolTip">
+    <string>Open a figure window displaying the loaded steady-state absorption and emission spectra</string>
    </property>
   </action>
   <action name="actionQuit">

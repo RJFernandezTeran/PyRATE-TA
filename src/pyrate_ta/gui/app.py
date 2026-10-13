@@ -63,7 +63,14 @@ def _report_missing_fonts() -> list[str]:
     Returns the preferred fonts that *are* available, so a caller can test this.
     """
     try:
-        from pymorgan.fonts import PREFERRED_FONTS, available_preferred_fonts
+        from pymorgan.fonts import (
+            PREFERRED_FONTS,
+            available_preferred_fonts,
+            ensure_fonts_installed,
+        )
+
+        if "TeX Gyre Heros" not in available_preferred_fonts():
+            ensure_fonts_installed(quiet=True)
 
         found = available_preferred_fonts()
     except Exception:  # pragma: no cover - PyMORGAN is a hard dependency
@@ -107,11 +114,12 @@ def main(argv: list[str] | None = None) -> int:
         app.setWindowIcon(QIcon(str(icon)))
 
     # PyRATE-TA keeps its own settings.toml (analysis + interface); the theme
-    # *resolution* is PyMORGAN's, so both applications look identical.
+    # *resolution* and preferences are PyMORGAN's, so both applications look identical.
     from pymorgan.gui.app import _resolve_theme
 
     from ..settings import ensure_settings_file, get_settings, load_settings
 
+    _load_pymorgan_settings()
     try:
         load_settings(ensure_settings_file())
     except Exception:
@@ -137,12 +145,24 @@ def main(argv: list[str] | None = None) -> int:
     # Console banner: what to cite when results from this software are
     # published. Logged, not printed, so a host application keeps control.
     citation_notice()
-    _load_pymorgan_settings()
     _report_missing_fonts()
 
     from .main_window import MainWindow
 
+    initial_file = None
+    for a in args[1:]:
+        if not a.startswith("-") and Path(a).is_file():
+            initial_file = str(Path(a).resolve())
+            break
+
     window = MainWindow()
+    if initial_file:
+        try:
+            window.load_path(initial_file)
+            logger.info("Loaded initial file: %s", initial_file)
+        except Exception:
+            logger.warning("Could not open initial file: %s", initial_file, exc_info=True)
+
     window.show()
 
     logger.info("PyRATE-TA GUI loaded in %.2f s", time.perf_counter() - t_start)

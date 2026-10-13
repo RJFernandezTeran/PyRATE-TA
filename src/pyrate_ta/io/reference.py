@@ -131,8 +131,8 @@ def interpolate_reference_spectrum(
 
     if r_max < p_min or r_min > p_max:
         raise ValueError(
-            f"Reference spectrum window [{r_min:.4g} – {r_max:.4g}] does not overlap "
-            f"with dataset probe window [{p_min:.4g} – {p_max:.4g}]."
+            f"Reference spectrum window [{r_min:.4g} - {r_max:.4g}] does not overlap "
+            f"with dataset probe window [{p_min:.4g} - {p_max:.4g}]."
         )
 
     # Evaluate interpolation: NumPy's interp natively handles decreasing probe_grid
