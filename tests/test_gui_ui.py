@@ -154,7 +154,7 @@ def test_the_irf_table_uses_a_delta_row_and_lb_before_ub():
         assert headers[1:] == ["LB", "UB", "Fix?"], (name, headers)
 
     rows = [r.find("property/string").text for r in tables["IRFtable"].findall("row")]
-    assert rows == ["t0", "Δ"]
+    assert rows == ["t0", "\u0394"]
 
 
 def test_the_fit_controls_sit_in_the_left_column():
@@ -696,4 +696,107 @@ def test_live_cuts_axes_limits_synced_with_contour():
         assert np.isclose(kinetics.get_ylim()[1], 20.0)
     finally:
         win.close()
+
+
+def test_app_initial_file_load(tmp_path):
+    _require_qt()
+    import numpy as np
+    import pymorgan as pm
+    from PyQt6.QtWidgets import QApplication
+    from pyrate_ta.gui.main_window import MainWindow
+
+    app = QApplication.instance() or QApplication([])
+    t = np.linspace(0.1, 50.0, 20)
+    probe = np.linspace(450.0, 650.0, 25)
+    z = np.ones((20, 25, 1))
+    ds = pm.Dataset1D(z, t, probe, {"unitsT_ltx": "ps", "unitsL_ltx": "nm"})
+    pdat_file = tmp_path / "test_initial.pdat"
+    pm.export_pdat(ds, pdat_file)
+
+    win = MainWindow()
+    try:
+        win.load_path(str(pdat_file))
+        assert win.dataset is not None
+        assert len(win.dataset.delays) == 20
+    finally:
+        win.close()
+
+
+def test_steady_state_gui_flow(tmp_path):
+    _require_qt()
+    from unittest.mock import patch
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pymorgan as pm
+    from PyQt6.QtWidgets import QApplication
+    from pyrate_ta.gui.main_window import MainWindow
+
+    app = QApplication.instance() or QApplication([])
+    t = np.linspace(0.1, 50.0, 20)
+    probe = np.linspace(450.0, 650.0, 25)
+    z = np.ones((20, 25, 1))
+    ds = pm.Dataset1D(z, t, probe, {"unitsT_ltx": "ps", "unitsL_ltx": "nm"})
+    pdat_file = tmp_path / "test_ss.pdat"
+    pm.export_pdat(ds, pdat_file)
+
+    abs_file = tmp_path / "abs.csv"
+    abs_file.write_text("Wavelength,Abs\n450,0.1\n550,1.0\n650,0.1\n")
+    em_file = tmp_path / "em.csv"
+    em_file.write_text("Wavelength,Em\n450,0.05\n580,1.2\n650,0.2\n")
+
+    win = MainWindow()
+    try:
+        # 1. Elements exist
+        assert hasattr(win, "PP_IncludeSS_CheckBox")
+        assert hasattr(win, "PP_ShowSSbutton")
+        assert hasattr(win, "actionPlotSteadyState")
+        assert win.PP_IncludeSS_CheckBox.isChecked() is False
+        assert win.PP_ShowSSbutton.isEnabled() is False
+        assert win.actionPlotSteadyState.isEnabled() is False
+
+        # 2. Load dataset
+        win.load_path(str(pdat_file))
+        assert win.dataset is not None
+        assert win.PP_IncludeSS_CheckBox.isEnabled() is True
+        assert win.PP_ShowSSbutton.isEnabled() is False
+
+        # 3. Load absorption spectrum
+        with patch("PyQt6.QtWidgets.QFileDialog.getOpenFileName", return_value=(str(abs_file), "")):
+            win.load_abs_spectrum()
+        assert win.ss_abs is not None
+        assert win.ss_abs_spectrum is not None
+        assert win.PP_ShowSSbutton.isEnabled() is True
+        assert win.actionPlotSteadyState.isEnabled() is True
+
+        # 4. Load emission spectrum
+        with patch("PyQt6.QtWidgets.QFileDialog.getOpenFileName", return_value=(str(em_file), "")):
+            win.load_em_spectrum()
+        assert win.ss_em is not None
+        assert win.ss_em_spectrum is not None
+
+        # 5. Checkbox toggling updates include_ss_spectra property
+        win.PP_IncludeSS_CheckBox.setChecked(True)
+        assert win.include_ss_spectra is True
+
+        # 6. Test _show_steady_state opens figure
+        with patch("matplotlib.pyplot.show"):
+            win._show_steady_state()
+            assert plt.get_fignums()
+            plt.close("all")
+
+        # 7. Clear reference spectra
+        win.clear_ref_spectra()
+        assert win.ss_abs is None
+        assert win.ss_em is None
+        assert win.ss_abs_spectrum is None
+        assert win.ss_em_spectrum is None
+        assert win.PP_ShowSSbutton.isEnabled() is False
+        assert win.actionPlotSteadyState.isEnabled() is False
+    finally:
+        app.processEvents()
+        win.close()
+        app.processEvents()
+        plt.close("all")
+
+
 

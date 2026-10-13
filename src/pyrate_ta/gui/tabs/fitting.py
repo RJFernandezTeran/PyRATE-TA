@@ -592,6 +592,9 @@ class FitTabMixin:
             return
         species_ds, S_to_plot, Taus, TauErr, isFixTau, modelType, bleach_res, gs_spec, em_spec = data_tuple
 
+        abs_overlay = self.ss_abs if self.include_ss_spectra else None
+        em_overlay = self.ss_em if self.include_ss_spectra else None
+
         try:
             ax = species_ds.plot_species_spectra(
                 S_to_plot,
@@ -602,22 +605,24 @@ class FitTabMixin:
                 doSmooth=do_smooth,
                 normY=norm,
                 species_labels=fit.species_labels() if hasattr(fit, "species_labels") else None,
+                Abs=abs_overlay,
+                Em=em_overlay,
                 **self._quoting_kwargs(),
             )
 
-            if bleach_res is not None:
+            if bleach_res is not None and not (self.include_ss_spectra and (abs_overlay is not None or em_overlay is not None)):
                 fit_probe = np.asarray(species_ds.probe, dtype=float)
                 gs_scale = np.max(bleach_res.gs_scale) if np.ndim(bleach_res.gs_scale) > 0 else float(bleach_res.gs_scale)
                 em_scale = np.max(bleach_res.em_scale) if np.ndim(bleach_res.em_scale) > 0 else float(bleach_res.em_scale)
 
                 if gs_spec is not None and np.any(gs_spec > 0) and gs_scale > 0:
                     gsb_trace = -1.0 * (gs_spec / np.max(gs_spec)) if norm else -1.0 * gs_scale * gs_spec
-                    ax.plot(fit_probe, gsb_trace, "--", color="dimgray", linewidth=1.2, label="GSB (-1 × Abs)", zorder=1)
+                    ax.plot(fit_probe, gsb_trace, "--", color="dimgray", linewidth=1.2, label="GSB (-1 * Abs)", zorder=1)
                     ax.fill_between(fit_probe, gsb_trace, 0, alpha=0.15, color="dimgray", zorder=0)
 
                 if em_spec is not None and np.any(em_spec > 0) and em_scale > 0:
                     se_trace = -1.0 * (em_spec / np.max(em_spec)) if norm else -1.0 * em_scale * em_spec
-                    ax.plot(fit_probe, se_trace, ":", color="darkorchid", linewidth=1.2, label="SE (-1 × Em)", zorder=1)
+                    ax.plot(fit_probe, se_trace, ":", color="darkorchid", linewidth=1.2, label="SE (-1 * Em)", zorder=1)
                     ax.fill_between(fit_probe, se_trace, 0, alpha=0.15, color="darkorchid", zorder=0)
 
                 ax.legend(loc="best")
@@ -787,7 +792,17 @@ class FitTabMixin:
         species_ds, S_to_plot, Taus, TauErr, isFixTau, modelType, bleach_res, gs_spec, em_spec = data_tuple
 
         ax = self.axis("spectra")
+        if ax is not None and ax.figure is not None:
+            for sibling in list(ax.figure.axes):
+                if (
+                    sibling is not ax
+                    and getattr(sibling, "_sharex", None) is ax
+                    and np.allclose(sibling.get_position().bounds, ax.get_position().bounds)
+                ):
+                    sibling.remove()
         ax.clear()
+        abs_overlay = self.ss_abs if self.include_ss_spectra else None
+        em_overlay = self.ss_em if self.include_ss_spectra else None
         try:
             species_ds.plot_species_spectra(
                 S_to_plot,
@@ -799,22 +814,24 @@ class FitTabMixin:
                 fig=self.PlotArea.figure,
                 settings=self.embedded_settings(),
                 species_labels=fit.species_labels() if hasattr(fit, "species_labels") else None,
+                Abs=abs_overlay,
+                Em=em_overlay,
                 **self._quoting_kwargs(),
             )
 
-            if bleach_res is not None:
+            if bleach_res is not None and not (self.include_ss_spectra and (abs_overlay is not None or em_overlay is not None)):
                 fit_probe = np.asarray(species_ds.probe, dtype=float)
                 gs_scale = np.max(bleach_res.gs_scale) if np.ndim(bleach_res.gs_scale) > 0 else float(bleach_res.gs_scale)
                 em_scale = np.max(bleach_res.em_scale) if np.ndim(bleach_res.em_scale) > 0 else float(bleach_res.em_scale)
 
                 if gs_spec is not None and np.any(gs_spec > 0) and gs_scale > 0:
                     gsb_trace = -1.0 * gs_scale * gs_spec
-                    ax.plot(fit_probe, gsb_trace, "--", color="dimgray", linewidth=1.0, label="GSB (-1 × Abs)", zorder=1)
+                    ax.plot(fit_probe, gsb_trace, "--", color="dimgray", linewidth=1.0, label="GSB (-1 * Abs)", zorder=1)
                     ax.fill_between(fit_probe, gsb_trace, 0, alpha=0.15, color="dimgray", zorder=0)
 
                 if em_spec is not None and np.any(em_spec > 0) and em_scale > 0:
                     se_trace = -1.0 * em_scale * em_spec
-                    ax.plot(fit_probe, se_trace, ":", color="darkorchid", linewidth=1.0, label="SE (-1 × Em)", zorder=1)
+                    ax.plot(fit_probe, se_trace, ":", color="darkorchid", linewidth=1.0, label="SE (-1 * Em)", zorder=1)
                     ax.fill_between(fit_probe, se_trace, 0, alpha=0.15, color="darkorchid", zorder=0)
 
                 ax.legend(loc="best", fontsize="x-small")

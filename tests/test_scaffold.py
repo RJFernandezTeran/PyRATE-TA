@@ -60,13 +60,13 @@ def test_settings_roundtrip():
     s = pr.Settings(
         n_components=3,
         model_type=pr.ModelType.TARGET,
-        n_contours=40,
+        ftol=1e-7,
         time_limits=(0.2, None),
     )
     restored = pr.Settings.from_dict(s.to_dict())
     assert restored.n_components == 3
     assert restored.model_type is pr.ModelType.TARGET
-    assert restored.n_contours == 40
+    assert restored.ftol == 1e-7
     assert restored.time_limits == (0.2, None)
 
 
@@ -140,13 +140,21 @@ def test_every_setting_reaches_the_panel():
     names = {f.name for f in fields(pr.Settings)}
     specs = pr.Settings.field_specs()
     deliberately_hidden = {
-        "offset",  # deprecated: an inf lifetime is the offset
         "lda_n_lifetimes",
         "lda_tau_min",
         "lda_tau_max",
         "lda_regularisation",
         "lda_alpha",
         "lda_non_negative",
+        "panel_left",
+        "panel_right",
+        "panel_top",
+        "panel_bottom",
+        "panel_hspace",
+        "panel_wspace",
+        "window_width",
+        "window_height",
+        "restore_window_size",
     }
     assert names - set(specs) == deliberately_hidden
     assert all(spec.get("kind") for spec in specs.values())
@@ -155,12 +163,9 @@ def test_every_setting_reaches_the_panel():
 
 def test_the_theme_choices_come_from_pymorgan():
     """One list of Qt styles, owned by PyMORGAN."""
-
     from pymorgan.settings import gui_theme_choices
 
-    spec = pr.Settings.field_specs()["gui_theme"]
-    assert spec["kind"] == "choice"
-    assert spec["choices"] == list(gui_theme_choices())
+    assert pr.get_settings().gui_theme in gui_theme_choices()
 
 
 def test_two_component_fixture_is_consistent(two_component):

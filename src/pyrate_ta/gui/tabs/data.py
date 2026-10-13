@@ -131,6 +131,8 @@ class DataTabMixin:
         self._axes = {}
         self.PlotArea.figure.clear()
         self.PlotArea.canvas.draw_idle()
+        if hasattr(self, "clear_ref_spectra"):
+            self.clear_ref_spectra()
         self._set_dataset_widgets_enabled(False)
         self.statusBar().showMessage("No dataset loaded")
 
@@ -160,6 +162,8 @@ class DataTabMixin:
                 w.setToolTip(reason)
         self._update_noise_controls()
         self._on_model_changed()  # the scheme editor depends on the family *and* the data
+        if hasattr(self, "_on_reference_spectra_changed"):
+            self._on_reference_spectra_changed()
 
 
     # ------------------------------------------------------------------ #
@@ -567,14 +571,26 @@ class DataTabMixin:
             self.render_all()
             return
         ax = self.axis("spectra")
+        if ax is not None and ax.figure is not None:
+            for sibling in list(ax.figure.axes):
+                if (
+                    sibling is not ax
+                    and getattr(sibling, "_sharex", None) is ax
+                    and np.allclose(sibling.get_position().bounds, ax.get_position().bounds)
+                ):
+                    sibling.remove()
         delays = self._auto_delays()
         data_style, fit_style = overlay_styles("spectra")
+        abs_overlay = self.ss_abs if self.include_ss_spectra else None
+        em_overlay = self.ss_em if self.include_ss_spectra else None
         try:
             self.dataset.plot_spectra(
                 delays,
                 ax=ax,
                 fig=self.PlotArea.figure,
                 settings=self.embedded_settings(),
+                Abs=abs_overlay,
+                Em=em_overlay,
                 **data_style,
             )
             self._overlay_fit(ax, "spectra", delays, fit_style)
@@ -828,6 +844,8 @@ class DataTabMixin:
                 incl_residuals=incl_res,
                 normY=self._norm(),
                 doSmooth=self._smooth_value(),
+                Abs=self.ss_abs if self.include_ss_spectra else None,
+                Em=self.ss_em if self.include_ss_spectra else None,
             )
         plt.show(block=False)
 

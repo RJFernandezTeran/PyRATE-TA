@@ -75,6 +75,10 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._current_path = None
         self._last_dir = str(settings.default_datadir) if settings.default_datadir else None
         self.plot_controls = None
+        self._ss_abs = None
+        self._ss_abs_spectrum = None
+        self._ss_em = None
+        self._ss_em_spectrum = None
 
         self._init_fit_methods()
         self._init_plot_controls()
@@ -83,6 +87,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._wire()
         self._build_menus()
         self._apply_button_aesthetics()
+        self._on_reference_spectra_changed()
 
         self.DataLoadedLamp.set_state("off")
         self._set_dataset_widgets_enabled(False)
@@ -267,6 +272,8 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect("PP_SurfaceplotButton", "clicked", lambda: self._popout("surface"))
         self._connect("PP_PlotKineticsButton", "clicked", lambda: self._popout("kinetics"))
         self._connect("PP_PlotTrSpectraButton", "clicked", lambda: self._popout("spectra"))
+        self._connect("PP_ShowSSbutton", "clicked", self._show_steady_state)
+        self._connect("PP_IncludeSS_CheckBox", "toggled", self._on_include_ss_toggled)
 
     def _build_menus(self):
         self._connect("actionOpen", "triggered", self.open_file)
@@ -276,6 +283,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect("actionLoadAbsSpectrum", "triggered", self.load_abs_spectrum)
         self._connect("actionLoadEmSpectrum", "triggered", self.load_em_spectrum)
         self._connect("actionClearRefSpectra", "triggered", self.clear_ref_spectra)
+        self._connect("actionPlotSteadyState", "triggered", self._show_steady_state)
         self._connect("actionQuit", "triggered", self.close)
         self._connect("actionRestoreSize", "triggered", self._restore_default_size)
         self._connect("actionSettings", "triggered", self.open_settings_dialog)
@@ -399,6 +407,14 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             self.dataset.gs_raw = (x_raw, y_raw)
             self.dataset.gs_filename = Path(path).name
 
+            import pymorgan as pm
+
+            spec = pm.steadyState.Spectrum(
+                x_raw, y_raw, kind="absorption", label=Path(path).stem, source=str(path)
+            )
+            self._ss_abs_spectrum = spec
+            self._ss_abs = spec.as_overlay_dict()
+
             self.statusBar().showMessage(
                 f"Absorption spectrum loaded: {Path(path).name} "
                 f"({len(x_raw)} raw points, mapped to {len(probe_ds)} probe channels)",
@@ -448,6 +464,14 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             self.dataset.em_raw = (x_raw, y_raw)
             self.dataset.em_filename = Path(path).name
 
+            import pymorgan as pm
+
+            spec = pm.steadyState.Spectrum(
+                x_raw, y_raw, kind="emission", label=Path(path).stem, source=str(path)
+            )
+            self._ss_em_spectrum = spec
+            self._ss_em = spec.as_overlay_dict()
+
             self.statusBar().showMessage(
                 f"Emission spectrum loaded: {Path(path).name} "
                 f"({len(x_raw)} raw points, mapped to {len(probe_ds)} probe channels)",
@@ -461,6 +485,10 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
 
     def clear_ref_spectra(self):
         """Clear loaded steady-state absorption and emission reference spectra."""
+        self._ss_abs = None
+        self._ss_abs_spectrum = None
+        self._ss_em = None
+        self._ss_em_spectrum = None
         if self.dataset is not None:
             self.dataset.gs_spectrum = None
             self.dataset.gs_raw = None
@@ -471,12 +499,146 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self.statusBar().showMessage("Reference absorption and emission spectra cleared", 5000)
         self._on_reference_spectra_changed()
 
+    @property
+    def ss_abs(self) -> dict | None:
+        """Raw steady-state absorption overlay dict {'X': x, 'Y': y} or None."""
+        if getattr(self, "_ss_abs", None) is not None:
+            return self._ss_abs
+        if self.dataset is not None and getattr(self.dataset, "gs_raw", None) is not None:
+            x, y = self.dataset.gs_raw
+            return {"X": np.asarray(x, dtype=float), "Y": np.asarray(y, dtype=float)}
+        return None
+
+    @property
+    def ss_em(self) -> dict | None:
+        """Raw steady-state emission overlay dict {'X': x, 'Y': y} or None."""
+        if getattr(self, "_ss_em", None) is not None:
+            return self._ss_em
+        if self.dataset is not None and getattr(self.dataset, "em_raw", None) is not None:
+            x, y = self.dataset.em_raw
+            return {"X": np.asarray(x, dtype=float), "Y": np.asarray(y, dtype=float)}
+        return None
+
+    @property
+    def ss_abs_spectrum(self):
+        """Steady-state absorption Spectrum object or None."""
+        if getattr(self, "_ss_abs_spectrum", None) is not None:
+            return self._ss_abs_spectrum
+        if self.dataset is not None and getattr(self.dataset, "gs_raw", None) is not None:
+            import pymorgan as pm
+
+            x, y = self.dataset.gs_raw
+            return pm.steadyState.Spectrum(
+                x, y, kind="absorption", label=getattr(self.dataset, "gs_filename", None)
+            )
+        return None
+
+    @property
+    def ss_em_spectrum(self):
+        """Steady-state emission Spectrum object or None."""
+        if getattr(self, "_ss_em_spectrum", None) is not None:
+            return self._ss_em_spectrum
+        if self.dataset is not None and getattr(self.dataset, "em_raw", None) is not None:
+            import pymorgan as pm
+
+            x, y = self.dataset.em_raw
+            return pm.steadyState.Spectrum(
+                x, y, kind="emission", label=getattr(self.dataset, "em_filename", None)
+            )
+        return None
+
+    @property
+    def include_ss_spectra(self) -> bool:
+        """Whether steady-state spectra should be included in spectral cuts and species plots."""
+        chk = getattr(self, "PP_IncludeSS_CheckBox", None)
+        return bool(chk.isChecked()) if chk is not None else False
+
     def _on_reference_spectra_changed(self):
         """Callback when absorption or emission reference spectra are loaded or cleared."""
+        has_ss = bool(self.ss_abs_spectrum is not None or self.ss_em_spectrum is not None)
+        act = getattr(self, "actionPlotSteadyState", None)
+        if act is not None:
+            act.setEnabled(has_ss)
+        btn = getattr(self, "PP_ShowSSbutton", None)
+        if btn is not None:
+            btn.setEnabled(has_ss)
+
         gsb_chk = getattr(self, "GSBRecoveryCheckBox", None)
         if gsb_chk is not None and gsb_chk.isChecked():
             if hasattr(self, "_render_species_spectra"):
                 self._render_species_spectra()
+        elif self.include_ss_spectra:
+            tab_idx = (
+                self.FittingTabWidget.currentIndex()
+                if hasattr(self, "FittingTabWidget") and self.FittingTabWidget is not None
+                else 0
+            )
+            fit = getattr(self, "fit_result", None)
+            if tab_idx == 0 and fit is not None and hasattr(self, "_render_species_spectra"):
+                self._render_species_spectra()
+            elif hasattr(self, "render_all"):
+                self.render_all()
+
+    def _on_include_ss_toggled(self, checked: bool = False):
+        """Called when 'Include SS-spectra' checkbox is toggled."""
+        if self.dataset is None:
+            return
+        tab_idx = (
+            self.FittingTabWidget.currentIndex()
+            if hasattr(self, "FittingTabWidget") and self.FittingTabWidget is not None
+            else 0
+        )
+        fit = getattr(self, "fit_result", None)
+        if tab_idx == 0 and fit is not None and hasattr(self, "_render_species_spectra"):
+            self._render_species_spectra()
+        elif hasattr(self, "render_all"):
+            self.render_all()
+
+    def _show_steady_state(self):
+        """Plot the loaded steady-state absorption and/or emission spectra in a new figure."""
+        has_abs = self.ss_abs_spectrum is not None
+        has_em = self.ss_em_spectrum is not None
+
+        if not has_abs and not has_em:
+            from PyQt6.QtWidgets import QMessageBox
+
+            QMessageBox.information(
+                self,
+                "No Steady-State Data",
+                "No steady-state spectra have been loaded yet.\nPlease load an absorption or emission spectrum first.",
+            )
+            return
+
+        import matplotlib.pyplot as plt
+        import pymorgan as pm
+        from pymorgan.settings import SteadyStatePlotMode
+        from pymorgan.steadyState import plot_steady_state
+
+        pm.apply_style()
+        s = pm.get_settings()
+        normalise = getattr(self, "_norm", lambda: False)()
+        fig, ax = plt.subplots(figsize=s.spectra_figsize)
+
+        plot_steady_state(
+            abs_spectrum=self.ss_abs_spectrum,
+            em_spectrum=self.ss_em_spectrum,
+            ax=ax,
+            settings=s,
+            normalise=normalise,
+        )
+
+        title = "Steady-State Spectra"
+        if has_abs and has_em:
+            title = "Steady-State Absorption & Emission"
+        elif has_abs:
+            title = "Steady-State Absorption"
+        elif has_em:
+            title = "Steady-State Emission"
+        if normalise or (has_abs and has_em and s.ss_plot_mode == SteadyStatePlotMode.NORMALISED):
+            title += " (Normalised)"
+        ax.set_title(title)
+        fig.tight_layout()
+        plt.show(block=False)
 
     def open_settings_dialog(self):
         """Edit the settings live, in one dialog with two halves.

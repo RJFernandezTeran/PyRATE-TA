@@ -20,9 +20,6 @@ model_type = "Sequential"
 # Set upper limit to "None" (or "inf") to take the maximum available delay.
 time_limits = [0.2, "None"]
 
-# Deprecated: a non-decaying component is now created by entering a lifetime of inf.
-offset = false
-
 # -----------------------------------------------------------------------------
 # 2. Solver Settings
 # -----------------------------------------------------------------------------
@@ -44,9 +41,6 @@ use_noise_weights = false
 
 # Noise values below this fraction of the median noise are clipped up to it.
 noise_floor_fraction = 0.001
-
-# Report 1-sigma uncertainties from linearised covariance estimate.
-report_uncertainties = true
 
 # Warn when two fitted lifetimes come within this factor of each other.
 degeneracy_warn_ratio = 1.2
@@ -112,12 +106,6 @@ residuals_height_ratio = 4.0
 # Vertical spacing between kinetic trace panel and residual panel.
 residuals_hspace = 0.05
 
-# Default contour levels for contour maps.
-n_contours = 40
-
-# Linear threshold for arcsinh color scaling as a percentage of amplitude limit (0.1 to 100.0).
-asinh_pct = 5.0
-
 # Margins of the embedded 3x3 figure in figure fractions.
 panel_left = 0.09
 panel_right = 0.975
@@ -128,12 +116,6 @@ panel_bottom = 0.11
 panel_hspace = 0.45
 panel_wspace = 0.32
 
-# Show 1-sigma uncertainty beside each lifetime in plot legends.
-show_uncertainties = true
-
-# Round lifetime value together with its uncertainty.
-round_uncertainties = true
-
 # -----------------------------------------------------------------------------
 # 6. GUI & Interface Defaults
 # -----------------------------------------------------------------------------
@@ -143,12 +125,6 @@ fit_monitor_every = 0
 
 # Height scale of the monitor bars: "symlog", "log", or "linear".
 fit_monitor_scale = "symlog"
-
-# Qt style/theme; a "dark" token selects the dark palette ("Fusion Dark").
-gui_theme = "Fusion"
-
-# GUI splash-screen duration in seconds (0 disables).
-splash_duration = 0.5
 
 # Default window geometry in pixels.
 window_width = 1010

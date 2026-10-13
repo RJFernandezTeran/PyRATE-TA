@@ -37,12 +37,14 @@ def setup_trace_legend(
     legend_loc: str | None = None,
     settings=None,
 ) -> tuple[plt.matplotlib.legend.Legend | None, tuple[float, float, float, float] | None]:
-    """Build a clean, readable legend on ``ax_trace`` that avoids clipping.
+    """Build a clean, readable legend on ``ax_trace`` following PyMORGAN styling.
 
-    By default, places the legend inside the trace axis (``loc='best'``) with a
+    By default, places the draggable legend outside the trace axis to the right
+    (matching PyMORGAN's default ``legend_location="outside right"``) with a
     readable font size, clear combined data+fit handles (marker + line), and
-    semi-transparent frame. If an outside location is explicitly requested,
-    reserves margin space so that the legend is never clipped off the figure boundary.
+    semi-transparent frame, without clipping off the figure boundary.
+    Any matplotlib ``loc`` (e.g. ``'best'``, ``'upper left'``) places the legend
+    inside the trace panel instead.
 
     Parameters
     ----------
@@ -53,7 +55,8 @@ def setup_trace_legend(
     fit_lines : list of matplotlib.lines.Line2D, optional
         Fitted curve lines corresponding to the data curves.
     legend_loc : str, optional
-        Target location for the legend. Defaults to ``'best'`` (inside).
+        Target location for the legend. Defaults to PyMORGAN's ``legend_location``
+        (``"outside right"``).
     settings : Settings, optional
         PyRATE-TA settings object.
 
@@ -64,21 +67,22 @@ def setup_trace_legend(
         (or None if inside layout is used).
     """
     import pymorgan as pm
+    from pymorgan.oneD.plot import legend_placement
 
     s = get_settings() if settings is None else settings
     pm_s = pm.get_settings()
+    if fig is None:
+        fig = ax_trace.figure
 
     # Determine desired location
     if legend_loc is not None:
         loc_str = str(legend_loc).strip()
     else:
-        cfg_loc = str(getattr(s, "legend_location", "") or getattr(pm_s, "legend_location", "")).strip()
-        # For multi-panel traces with residuals, default outside locations to 'best'
-        # unless explicitly passed to the plotting function
-        if not cfg_loc or cfg_loc.lower().startswith("outside"):
-            loc_str = "best"
-        else:
-            loc_str = cfg_loc
+        loc_str = str(
+            getattr(s, "legend_location", "") or getattr(pm_s, "legend_location", "outside right")
+        ).strip() or "outside right"
+
+    pm_plot_settings = replace(pm_s, legend_location=loc_str)
 
     # Retrieve existing data handles and labels
     data_handles, data_labels = ax_trace.get_legend_handles_labels()
@@ -126,12 +130,14 @@ def setup_trace_legend(
         )
 
     is_outside = loc_str.lower().startswith("outside")
-    if is_outside:
-        leg_kwargs = {"loc": "center left", "bbox_to_anchor": (1.02, 0.5)}
-        layout_rect = (0.0, 0.0, 0.80, 1.0)
-    else:
-        leg_kwargs = {"loc": loc_str}
-        layout_rect = None
+    leg_kwargs = legend_placement(pm_plot_settings)
+    layout_rect = (0.0, 0.0, 0.78, 1.0) if is_outside else None
+
+    if is_outside and fig is not None and fig.get_layout_engine() is None:
+        try:
+            fig.set_layout_engine("constrained")
+        except Exception:
+            pass
 
     leg = ax_trace.legend(
         handles,
@@ -140,8 +146,8 @@ def setup_trace_legend(
         framealpha=0.85,
         edgecolor="0.8",
         fontsize="medium",
-        handlelength=2.2,
-        labelspacing=0.35,
+        handlelength=1.5,
+        labelspacing=float(getattr(pm_s, "legend_label_spacing", 0.25)),
         borderpad=0.5,
         **leg_kwargs,
     )
@@ -212,15 +218,13 @@ def plot_kinetics_with_residuals(
     if hspace is None:
         hspace = float(getattr(s, "residuals_hspace", 0.05))
 
-    # Resolve target legend location: default outside to "best" for multi-panel trace plots
+    # Resolve target legend location
     if legend_loc is not None:
         target_loc = str(legend_loc).strip()
     else:
-        cfg_loc = str(getattr(s, "legend_location", "") or getattr(pm_s, "legend_location", "")).strip()
-        if not cfg_loc or cfg_loc.lower().startswith("outside"):
-            target_loc = "best"
-        else:
-            target_loc = cfg_loc
+        target_loc = str(
+            getattr(s, "legend_location", "") or getattr(pm_s, "legend_location", "outside right")
+        ).strip() or "outside right"
 
     pm_plot_settings = replace(pm_s, legend_location=target_loc)
     data_style, fit_style = overlay_styles("kinetics", settings=s)
@@ -235,6 +239,7 @@ def plot_kinetics_with_residuals(
                 1,
                 sharex=True,
                 figsize=figsize,
+                layout="constrained",
                 gridspec_kw={"height_ratios": [height_ratio, 1.0], "hspace": hspace},
             )
         elif isinstance(ax, (list, tuple, np.ndarray)) and len(ax) >= 2:
@@ -247,7 +252,8 @@ def plot_kinetics_with_residuals(
             show_residuals = False
     else:
         if ax is None:
-            fig, ax_trace = plt.subplots()
+            figsize = tuple(getattr(pm_s, "kinetics_figsize", (7.5, 5.0)))
+            fig, ax_trace = plt.subplots(figsize=figsize, layout="constrained")
         else:
             ax_trace = ax
         ax_res = None
@@ -342,6 +348,22 @@ def plot_kinetics_with_residuals(
         # Align y-axis labels across subplots so they line up vertically
         if fig is not None:
             fig.align_ylabels([ax_trace, ax_res])
+            if fig.get_layout_engine() is None:
+                try:
+                    import warnings
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        if layout_rect is not None:
+                            fig.tight_layout(rect=layout_rect)
+                        else:
+                            fig.tight_layout()
+                except Exception:
+                    pass
+
+        return ax_trace, ax_res
+
+    if fig is not None:
+        if fig.get_layout_engine() is None:
             try:
                 import warnings
                 with warnings.catch_warnings():
@@ -352,20 +374,6 @@ def plot_kinetics_with_residuals(
                         fig.tight_layout()
             except Exception:
                 pass
-
-        return ax_trace, ax_res
-
-    if fig is not None:
-        try:
-            import warnings
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                if layout_rect is not None:
-                    fig.tight_layout(rect=layout_rect)
-                else:
-                    fig.tight_layout()
-        except Exception:
-            pass
 
     return ax_trace
 
@@ -384,6 +392,8 @@ def plot_spectra_with_residuals(
     hspace: float | None = None,
     legend_loc: str | None = None,
     settings=None,
+    Abs=None,
+    Em=None,
     **kwargs,
 ):
     """Plot transient spectra at selected positions with fit overlay and linked residuals.
@@ -417,6 +427,11 @@ def plot_spectra_with_residuals(
         Location for the legend. Defaults to ``'best'`` (inside the trace panel).
     settings : Settings, optional
         PyRATE-TA settings object.
+    Abs : dict or pymorgan.steadyState.Spectrum, optional
+        Steady-state absorption overlay with ``{"X": x, "Y": y}`` or a ``Spectrum``.
+    Em : dict or pymorgan.steadyState.Spectrum, optional
+        Steady-state emission overlay with ``{"X": x, "Y": y}`` or a ``Spectrum``.
+        Stimulated-emission factor (:math:`\\lambda^4`) is applied automatically.
 
     Returns
     -------
@@ -433,15 +448,13 @@ def plot_spectra_with_residuals(
     if hspace is None:
         hspace = float(getattr(s, "residuals_hspace", 0.05))
 
-    # Resolve target legend location: default outside to "best" for multi-panel trace plots
+    # Resolve target legend location
     if legend_loc is not None:
         target_loc = str(legend_loc).strip()
     else:
-        cfg_loc = str(getattr(s, "legend_location", "") or getattr(pm_s, "legend_location", "")).strip()
-        if not cfg_loc or cfg_loc.lower().startswith("outside"):
-            target_loc = "best"
-        else:
-            target_loc = cfg_loc
+        target_loc = str(
+            getattr(s, "legend_location", "") or getattr(pm_s, "legend_location", "outside right")
+        ).strip() or "outside right"
 
     pm_plot_settings = replace(pm_s, legend_location=target_loc)
     data_style, fit_style = overlay_styles("spectra", settings=s)
@@ -456,6 +469,7 @@ def plot_spectra_with_residuals(
                 1,
                 sharex=True,
                 figsize=figsize,
+                layout="constrained",
                 gridspec_kw={"height_ratios": [height_ratio, 1.0], "hspace": hspace},
             )
         elif isinstance(ax, (list, tuple, np.ndarray)) and len(ax) >= 2:
@@ -468,7 +482,8 @@ def plot_spectra_with_residuals(
             show_residuals = False
     else:
         if ax is None:
-            fig, ax_trace = plt.subplots()
+            figsize = tuple(getattr(pm_s, "spectra_figsize", (7.5, 4.5)))
+            fig, ax_trace = plt.subplots(figsize=figsize, layout="constrained")
         else:
             ax_trace = ax
         ax_res = None
@@ -482,6 +497,8 @@ def plot_spectra_with_residuals(
         doSmooth=doSmooth,
         show_xlabel=not show_residuals,
         settings=pm_plot_settings,
+        Abs=Abs,
+        Em=Em,
         **data_style,
         **kwargs,
     )
@@ -563,6 +580,22 @@ def plot_spectra_with_residuals(
         # Align y-axis labels across subplots so they line up vertically
         if fig is not None:
             fig.align_ylabels([ax_trace, ax_res])
+            if fig.get_layout_engine() is None:
+                try:
+                    import warnings
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        if layout_rect is not None:
+                            fig.tight_layout(rect=layout_rect)
+                        else:
+                            fig.tight_layout()
+                except Exception:
+                    pass
+
+        return ax_trace, ax_res
+
+    if fig is not None:
+        if fig.get_layout_engine() is None:
             try:
                 import warnings
                 with warnings.catch_warnings():
@@ -573,19 +606,5 @@ def plot_spectra_with_residuals(
                         fig.tight_layout()
             except Exception:
                 pass
-
-        return ax_trace, ax_res
-
-    if fig is not None:
-        try:
-            import warnings
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                if layout_rect is not None:
-                    fig.tight_layout(rect=layout_rect)
-                else:
-                    fig.tight_layout()
-        except Exception:
-            pass
 
     return ax_trace
