@@ -300,6 +300,23 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             menu_file.addAction(act_pm)
             self.actionOpenPyMORGAN = act_pm
 
+        menu_help = getattr(self, "menuHelp", None)
+        if menu_help is not None and not hasattr(self, "actionCheckUpdates"):
+            from PyQt6.QtGui import QAction
+
+            act_upd = QAction("Check for Updates (Release / Bleeding Edge)...", self)
+            act_upd.setToolTip(
+                "Check GitHub for new releases or sync bleeding-edge updates from the main branch"
+            )
+            act_upd.triggered.connect(self._check_for_updates)
+            about_act = getattr(self, "actionAbout", None)
+            if about_act is not None:
+                menu_help.insertAction(about_act, act_upd)
+                menu_help.insertSeparator(about_act)
+            else:
+                menu_help.addAction(act_upd)
+            self.actionCheckUpdates = act_upd
+
     def _launch_pymorgan(self):
         """Launch PyMORGAN, optionally passing the current dataset file."""
         from pyrate_ta.io.pymorgan_bridge import launch_pymorgan
@@ -715,6 +732,20 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             self._last_dir = str(settings.default_datadir)
         if self.dataset is not None:
             self.render_all()
+
+    def _check_for_updates(self):
+        """Interactive check for new GitHub releases or bleeding-edge main branch updates."""
+        from pymorgan.gui.updater import check_for_updates_interactive
+
+        check_for_updates_interactive(
+            self,
+            github_url="https://github.com/RJFernandezTeran/PyRATE-TA",
+            current_version=pr.__version__,
+            app_name="PyRATE-TA",
+            status_callback=lambda msg: (
+                self.statusBar().showMessage(msg, 4000) if msg else self.statusBar().clearMessage()
+            ),
+        )
 
     def _about(self):
         from .about_dialog import ModernAboutDialog

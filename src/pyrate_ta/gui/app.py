@@ -95,7 +95,11 @@ def main(argv: list[str] | None = None) -> int:
     cli_dark = "--dark" in args
     if cli_dark:
         args = [a for a in args if a != "--dark"]
-    if sys.platform.startswith("win") and "-platform" not in args:
+    if (
+        sys.platform.startswith("win")
+        and "-platform" not in args
+        and not os.environ.get("QT_QPA_PLATFORM")
+    ):
         args += ["-platform", "windows:darkmode=0"]
         try:
             import ctypes

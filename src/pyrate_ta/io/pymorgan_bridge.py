@@ -45,6 +45,27 @@ def get_pymorgan_info() -> dict[str, Any]:
     return info
 
 
+def find_pymorgan_command() -> list[str]:
+    """Return command argv to execute PyMORGAN."""
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).parent
+        for name in ("PyMORGAN.exe", "pymorgan.exe", "PyMORGAN", "pymorgan"):
+            cand = exe_dir / name
+            if cand.is_file():
+                return [str(cand)]
+        for name in ("PyMORGAN_Suite.exe", "PyMORGAN_Suite"):
+            cand = exe_dir / name
+            if cand.is_file():
+                return [str(cand), "--pymorgan"]
+
+    py_exe = sys.executable
+    if sys.platform == "win32":
+        pyw = Path(py_exe).with_name("pythonw.exe")
+        if pyw.is_file():
+            py_exe = str(pyw)
+    return [py_exe, "-m", "pymorgan"]
+
+
 def launch_pymorgan(dataset_path: str | Path | None = None) -> subprocess.Popen:
     """Launch PyMORGAN in a detached background process with no console window.
 
@@ -58,18 +79,22 @@ def launch_pymorgan(dataset_path: str | Path | None = None) -> subprocess.Popen:
     subprocess.Popen
         The detached process handle.
     """
-    cmd = [sys.executable, "-m", "pymorgan"]
+    cmd = list(find_pymorgan_command())
     if dataset_path is not None:
         p = Path(dataset_path)
         if p.exists():
             cmd.append(str(p))
 
-    kwargs: dict[str, Any] = {}
+    kwargs: dict[str, Any] = {
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+    }
     if sys.platform == "win32":
-        kwargs["creationflags"] = (
-            subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000) | getattr(
+            subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200
         )
-        kwargs["close_fds"] = True
+        kwargs["creationflags"] = flags
     else:
         kwargs["start_new_session"] = True
 

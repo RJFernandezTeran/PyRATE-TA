@@ -11,6 +11,13 @@ import sys
 
 def main(argv: list[str] | None = None) -> int:
     """Launch the PyRATE-TA GUI with terminal suppression."""
+    if getattr(sys, "frozen", False):
+        import multiprocessing
+
+        multiprocessing.freeze_support()
+    args = list(argv) if argv is not None else sys.argv[1:]
+    if getattr(sys, "frozen", False) and args and args[0] in ("-m", "-c"):
+        return 2
     try:
         from pymorgan.fonts import ensure_fonts_installed
         from pymorgan.gui.console import hide_console, set_windows_app_id

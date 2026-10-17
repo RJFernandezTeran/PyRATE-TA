@@ -769,12 +769,16 @@ def settings_path(start: str | Path | None = None) -> Path:
     The same lookup order PyMORGAN uses, so a project directory can override the
     defaults for both packages in the same way.
     """
+    import sys
+
     local = Path(start or Path.cwd()) / "settings.toml"
     if local.is_file():
         return local.resolve()
     repo_root = Path(__file__).resolve().parents[2]
     if (repo_root / "pyproject.toml").is_file() or (repo_root / ".git").is_dir():
         return (repo_root / "settings.toml").resolve()
+    if start is None and getattr(sys, "frozen", False):
+        return (Path.home() / ".config" / "pyrate_ta" / "settings.toml").resolve()
     return local.resolve()
 
 
@@ -794,8 +798,14 @@ def ensure_settings_file(path: str | Path | None = None) -> Path:
     if not target.exists():
         import warnings
 
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(default_text, encoding="utf-8")
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(default_text, encoding="utf-8")
+        except OSError:
+            target = (Path.home() / ".config" / "pyrate_ta" / "settings.toml").resolve()
+            target.parent.mkdir(parents=True, exist_ok=True)
+            if not target.exists():
+                target.write_text(default_text, encoding="utf-8")
         warnings.warn(
             f"Created default settings file at '{target}'. "
             "You can run `pyrate-ta-settings` to configure your preferences interactively, "
