@@ -440,6 +440,8 @@ class FitTabMixin:
         self._update_species_button()
 
         self._write_fitted_lifetimes(fit)
+        if getattr(self, "_render_timer", None) is not None and self._render_timer.isActive():
+            self._render_timer.stop()
         # The panels now have a fit to overlay: data as points, model as lines.
         self.render_all()
         self.statusBar().showMessage(
@@ -575,6 +577,71 @@ class FitTabMixin:
 
         return species_ds, S_to_plot, Taus, TauErr, isFixTau, modelType, bleach_res, gs_spec, em_spec
 
+    def _resolved_ss_overlays(self, species_ds, bleach_res=None, gs_spec=None, em_spec=None):
+        """Return ``(abs_overlay, em_overlay)`` dicts when steady-state plotting is enabled."""
+        plot_ss = bool(
+            getattr(self, "plot_ss_spectra", getattr(self, "include_ss_spectra", False))
+        )
+        if not plot_ss:
+            return None, None
+        abs_overlay = getattr(self, "ss_abs", None)
+        em_overlay = getattr(self, "ss_em", None)
+        if bleach_res is not None:
+            probe = np.asarray(species_ds.probe, dtype=float)
+            dense = getattr(self, "_dense_overlay_dict", None)
+            if abs_overlay is None and gs_spec is not None and np.any(gs_spec > 0):
+                abs_overlay = (
+                    dense(probe, gs_spec)
+                    if callable(dense)
+                    else {"X": probe, "Y": np.asarray(gs_spec, dtype=float)}
+                )
+            if em_overlay is None and em_spec is not None and np.any(em_spec > 0):
+                em_overlay = (
+                    dense(probe, em_spec)
+                    if callable(dense)
+                    else {"X": probe, "Y": np.asarray(em_spec, dtype=float)}
+                )
+        return abs_overlay, em_overlay
+
+    @staticmethod
+    def _align_ss_overlay_axes(ax) -> None:
+        """Ensure the negative steady-state shaded area and its legend are clearly visible."""
+        if ax is None or ax.figure is None:
+            return
+        twins = [
+            s for s in ax.figure.axes if s is not ax and getattr(s, "_sharex", None) is ax
+        ]
+        if not twins:
+            return
+        ax3 = twins[-1]
+        if ax.get_axes_locator() is not None:
+            ax3.set_axes_locator(ax.get_axes_locator())
+        ax3.set_position(ax.get_position())
+        yl = ax.get_ylim()
+        if yl[1] > 0 and yl[0] > -0.35 * yl[1]:
+            import mpl_axes_aligner
+
+            new_y0 = -0.35 * yl[1]
+            ax.set_ylim(new_y0, yl[1])
+            ax3.set_ylim(-1.05, 0.05)
+            c_pos = (0.0 - new_y0) / (yl[1] - new_y0)
+            mpl_axes_aligner.shift.yaxis(ax3, 0, c_pos, expand=True)
+
+        leg1 = ax.get_legend()
+        leg3 = ax3.get_legend()
+        if leg1 is not None and leg3 is not None:
+            try:
+                ax.figure.canvas.draw()
+                renderer = ax.figure.canvas.get_renderer()
+                b1 = leg1.get_window_extent(renderer)
+                b3 = leg3.get_window_extent(renderer)
+                if b1.overlaps(b3):
+                    leg3 = ax3.legend(loc="lower right", handlelength=0.75)
+                    if leg3 is not None:
+                        leg3.set_draggable(True)
+            except Exception:
+                pass
+
     def _popout_species_spectra(self):
         """Open the fitted species spectra in their own window."""
         fit = getattr(self, "fit_result", None)
@@ -592,8 +659,9 @@ class FitTabMixin:
             return
         species_ds, S_to_plot, Taus, TauErr, isFixTau, modelType, bleach_res, gs_spec, em_spec = data_tuple
 
-        abs_overlay = self.ss_abs if self.include_ss_spectra else None
-        em_overlay = self.ss_em if self.include_ss_spectra else None
+        abs_overlay, em_overlay = self._resolved_ss_overlays(
+            species_ds, bleach_res, gs_spec, em_spec
+        )
 
         try:
             ax = species_ds.plot_species_spectra(
@@ -609,25 +677,7 @@ class FitTabMixin:
                 Em=em_overlay,
                 **self._quoting_kwargs(),
             )
-
-            if bleach_res is not None and not (self.include_ss_spectra and (abs_overlay is not None or em_overlay is not None)):
-                fit_probe = np.asarray(species_ds.probe, dtype=float)
-                gs_scale = np.max(bleach_res.gs_scale) if np.ndim(bleach_res.gs_scale) > 0 else float(bleach_res.gs_scale)
-                em_scale = np.max(bleach_res.em_scale) if np.ndim(bleach_res.em_scale) > 0 else float(bleach_res.em_scale)
-
-                if gs_spec is not None and np.any(gs_spec > 0) and gs_scale > 0:
-                    gsb_trace = -1.0 * (gs_spec / np.max(gs_spec)) if norm else -1.0 * gs_scale * gs_spec
-                    ax.plot(fit_probe, gsb_trace, "--", color="dimgray", linewidth=1.2, label="GSB (-1 * Abs)", zorder=1)
-                    ax.fill_between(fit_probe, gsb_trace, 0, alpha=0.15, color="dimgray", zorder=0)
-
-                if em_spec is not None and np.any(em_spec > 0) and em_scale > 0:
-                    se_trace = -1.0 * (em_spec / np.max(em_spec)) if norm else -1.0 * em_scale * em_spec
-                    ax.plot(fit_probe, se_trace, ":", color="darkorchid", linewidth=1.2, label="SE (-1 * Em)", zorder=1)
-                    ax.fill_between(fit_probe, se_trace, 0, alpha=0.15, color="darkorchid", zorder=0)
-
-                ax.legend(loc="best")
-                if hasattr(ax.figure.canvas, "draw_idle"):
-                    ax.figure.canvas.draw_idle()
+            self._align_ss_overlay_axes(ax)
 
         except Exception as exc:
             logger.debug("species-spectra window failed", exc_info=True)
@@ -776,6 +826,8 @@ class FitTabMixin:
         if self.dataset is None:
             return
         self.render_all()
+        if getattr(self, "fit_result", None) is not None:
+            self._render_species_spectra()
 
     def _render_species_spectra(self):
         """Replace the spectra panel with the fitted species spectra.
@@ -794,15 +846,12 @@ class FitTabMixin:
         ax = self.axis("spectra")
         if ax is not None and ax.figure is not None:
             for sibling in list(ax.figure.axes):
-                if (
-                    sibling is not ax
-                    and getattr(sibling, "_sharex", None) is ax
-                    and np.allclose(sibling.get_position().bounds, ax.get_position().bounds)
-                ):
+                if sibling is not ax and getattr(sibling, "_sharex", None) is ax:
                     sibling.remove()
         ax.clear()
-        abs_overlay = self.ss_abs if self.include_ss_spectra else None
-        em_overlay = self.ss_em if self.include_ss_spectra else None
+        abs_overlay, em_overlay = self._resolved_ss_overlays(
+            species_ds, bleach_res, gs_spec, em_spec
+        )
         try:
             species_ds.plot_species_spectra(
                 S_to_plot,
@@ -818,24 +867,7 @@ class FitTabMixin:
                 Em=em_overlay,
                 **self._quoting_kwargs(),
             )
-
-            if bleach_res is not None and not (self.include_ss_spectra and (abs_overlay is not None or em_overlay is not None)):
-                fit_probe = np.asarray(species_ds.probe, dtype=float)
-                gs_scale = np.max(bleach_res.gs_scale) if np.ndim(bleach_res.gs_scale) > 0 else float(bleach_res.gs_scale)
-                em_scale = np.max(bleach_res.em_scale) if np.ndim(bleach_res.em_scale) > 0 else float(bleach_res.em_scale)
-
-                if gs_spec is not None and np.any(gs_spec > 0) and gs_scale > 0:
-                    gsb_trace = -1.0 * gs_scale * gs_spec
-                    ax.plot(fit_probe, gsb_trace, "--", color="dimgray", linewidth=1.0, label="GSB (-1 * Abs)", zorder=1)
-                    ax.fill_between(fit_probe, gsb_trace, 0, alpha=0.15, color="dimgray", zorder=0)
-
-                if em_spec is not None and np.any(em_spec > 0) and em_scale > 0:
-                    se_trace = -1.0 * em_scale * em_spec
-                    ax.plot(fit_probe, se_trace, ":", color="darkorchid", linewidth=1.0, label="SE (-1 * Em)", zorder=1)
-                    ax.fill_between(fit_probe, se_trace, 0, alpha=0.15, color="darkorchid", zorder=0)
-
-                ax.legend(loc="best", fontsize="x-small")
-
+            self._align_ss_overlay_axes(ax)
         except Exception:
             logger.debug("species-spectra preview failed", exc_info=True)
             return

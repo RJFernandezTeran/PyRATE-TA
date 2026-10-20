@@ -232,6 +232,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect("ShowSchemeButton", "clicked", self._popout_scheme)
         self._connect("PlotSpeciesSpectraButton", "clicked", self._popout_species_spectra)
         self._connect("PlotConcProfileButton", "clicked", self._popout_concentrations)
+        self._connect("PlotSteadyStateCheckBox", "toggled", self._on_plot_ss_toggled)
         self._connect(
             "GSBRecoveryCheckBox",
             "toggled",
@@ -431,6 +432,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             )
             self._ss_abs_spectrum = spec
             self._ss_abs = spec.as_overlay_dict()
+            self._set_ss_checkboxes(True)
 
             self.statusBar().showMessage(
                 f"Absorption spectrum loaded: {Path(path).name} "
@@ -488,6 +490,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             )
             self._ss_em_spectrum = spec
             self._ss_em = spec.as_overlay_dict()
+            self._set_ss_checkboxes(True)
 
             self.statusBar().showMessage(
                 f"Emission spectrum loaded: {Path(path).name} "
@@ -514,26 +517,51 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             self.dataset.em_raw = None
             self.dataset.em_filename = None
         self.statusBar().showMessage("Reference absorption and emission spectra cleared", 5000)
+        self._set_ss_checkboxes(False)
         self._on_reference_spectra_changed()
 
     @property
     def ss_abs(self) -> dict | None:
         """Raw steady-state absorption overlay dict {'X': x, 'Y': y} or None."""
         if getattr(self, "_ss_abs", None) is not None:
-            return self._ss_abs
+            return self._dense_overlay_dict(self._ss_abs["X"], self._ss_abs["Y"])
         if self.dataset is not None and getattr(self.dataset, "gs_raw", None) is not None:
             x, y = self.dataset.gs_raw
-            return {"X": np.asarray(x, dtype=float), "Y": np.asarray(y, dtype=float)}
+            return self._dense_overlay_dict(x, y)
+        if self.dataset is not None and getattr(self.dataset, "gs_spectrum", None) is not None:
+            return self._dense_overlay_dict(self.dataset.probe, self.dataset.gs_spectrum)
         return None
+
+    def _set_ss_checkboxes(self, checked: bool) -> None:
+        """Synchronize the steady-state toggle checkboxes without re-triggering signals."""
+        for chk_name in ("PlotSteadyStateCheckBox", "PP_IncludeSS_CheckBox"):
+            chk = getattr(self, chk_name, None)
+            if chk is not None:
+                chk.blockSignals(True)
+                chk.setChecked(bool(checked))
+                chk.blockSignals(False)
+
+    @staticmethod
+    def _dense_overlay_dict(x, y, min_points: int = 200) -> dict:
+        x_arr = np.asarray(x, dtype=float)
+        y_arr = np.asarray(y, dtype=float)
+        if x_arr.size >= 2 and x_arr.size < min_points:
+            x_dense = np.linspace(float(np.nanmin(x_arr)), float(np.nanmax(x_arr)), min_points)
+            order = np.argsort(x_arr)
+            y_dense = np.interp(x_dense, x_arr[order], y_arr[order])
+            return {"X": x_dense, "Y": y_dense}
+        return {"X": x_arr, "Y": y_arr}
 
     @property
     def ss_em(self) -> dict | None:
         """Raw steady-state emission overlay dict {'X': x, 'Y': y} or None."""
         if getattr(self, "_ss_em", None) is not None:
-            return self._ss_em
+            return self._dense_overlay_dict(self._ss_em["X"], self._ss_em["Y"])
         if self.dataset is not None and getattr(self.dataset, "em_raw", None) is not None:
             x, y = self.dataset.em_raw
-            return {"X": np.asarray(x, dtype=float), "Y": np.asarray(y, dtype=float)}
+            return self._dense_overlay_dict(x, y)
+        if self.dataset is not None and getattr(self.dataset, "em_spectrum", None) is not None:
+            return self._dense_overlay_dict(self.dataset.probe, self.dataset.em_spectrum)
         return None
 
     @property
@@ -567,8 +595,36 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
     @property
     def include_ss_spectra(self) -> bool:
         """Whether steady-state spectra should be included in spectral cuts and species plots."""
+        chk_fit = getattr(self, "PlotSteadyStateCheckBox", None)
+        if chk_fit is not None and chk_fit.isChecked():
+            return True
         chk = getattr(self, "PP_IncludeSS_CheckBox", None)
         return bool(chk.isChecked()) if chk is not None else False
+
+    @property
+    def plot_ss_spectra(self) -> bool:
+        """Whether steady-state spectra should be overlaid on species spectra (EAS/DAS/SAS)."""
+        chk_fit = getattr(self, "PlotSteadyStateCheckBox", None)
+        if chk_fit is not None:
+            return bool(chk_fit.isChecked())
+        chk = getattr(self, "PP_IncludeSS_CheckBox", None)
+        return bool(chk.isChecked()) if chk is not None else False
+
+    def _on_plot_ss_toggled(self, checked: bool = False):
+        """Called when 'Plot steady-state spectra' checkbox is toggled."""
+        self._set_ss_checkboxes(checked)
+        if self.dataset is None:
+            return
+        tab_idx = (
+            self.FittingTabWidget.currentIndex()
+            if hasattr(self, "FittingTabWidget") and self.FittingTabWidget is not None
+            else 0
+        )
+        fit = getattr(self, "fit_result", None)
+        if tab_idx == 0 and fit is not None and hasattr(self, "_render_species_spectra"):
+            self._render_species_spectra()
+        elif hasattr(self, "render_all"):
+            self.render_all()
 
     def _on_reference_spectra_changed(self):
         """Callback when absorption or emission reference spectra are loaded or cleared."""
@@ -584,7 +640,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         if gsb_chk is not None and gsb_chk.isChecked():
             if hasattr(self, "_render_species_spectra"):
                 self._render_species_spectra()
-        elif self.include_ss_spectra:
+        elif self.dataset is not None:
             tab_idx = (
                 self.FittingTabWidget.currentIndex()
                 if hasattr(self, "FittingTabWidget") and self.FittingTabWidget is not None
@@ -598,6 +654,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
 
     def _on_include_ss_toggled(self, checked: bool = False):
         """Called when 'Include SS-spectra' checkbox is toggled."""
+        self._set_ss_checkboxes(checked)
         if self.dataset is None:
             return
         tab_idx = (

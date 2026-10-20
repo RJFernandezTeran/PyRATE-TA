@@ -70,6 +70,7 @@ _DATASET_ENABLED_WIDGETS = [
     "LDACitationsButton",
     "LDADynamicalContentCheckBox",
     "LDARestrictFitCheckBox",
+    "PlotSteadyStateCheckBox",
     "PP_IncludeSS_CheckBox",
 ]
 
@@ -152,6 +153,9 @@ _TOOLTIPS = {
     "LDARestrictFitCheckBox": "Fit only the delay/probe window currently displayed",
     "LDACitationsButton": "Show literature citations for the selected LDA algorithms",
     "GSBRecoveryCheckBox": "Overlay ground-state bleach recovery spectrum (-1 * GS) on species spectra",
+    "PlotSteadyStateCheckBox": (
+        "Overlay steady-state absorption and emission spectra as shaded areas on species spectra (EAS/DAS/SAS)"
+    ),
     "PP_IncludeSS_CheckBox": (
         "Include steady-state absorption and emission spectra in transient spectral cuts and EAS/SAS/DAS plots"
     ),

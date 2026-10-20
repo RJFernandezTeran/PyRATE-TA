@@ -800,3 +800,119 @@ def test_steady_state_gui_flow(tmp_path):
 
 
 
+def test_plot_steady_state_checkbox_below_species_and_concentrations(ui_names):
+    """'Plot steady-state spectra' checkbox sits in FitControlGroup below 'Plot EAS' and 'Concentrations'."""
+    assert "PlotSteadyStateCheckBox" in ui_names
+    root = ET.parse(UI_FILE).getroot()
+    fit_group = next(w for w in root.iter("widget") if w.get("name") == "FitControlGroup")
+    grid = fit_group.find("layout")
+    assert grid is not None
+    rows = {
+        item.find("widget").get("name"): int(item.get("row"))
+        for item in grid.findall("item")
+        if item.find("widget") is not None
+    }
+    assert "PlotSpeciesSpectraButton" in rows
+    assert "PlotConcProfileButton" in rows
+    assert "PlotSteadyStateCheckBox" in rows
+    assert rows["PlotSteadyStateCheckBox"] > rows["PlotSpeciesSpectraButton"]
+    assert rows["PlotSteadyStateCheckBox"] > rows["PlotConcProfileButton"]
+
+    chk = next(w for w in fit_group.iter("widget") if w.get("name") == "PlotSteadyStateCheckBox")
+    assert chk.get("class") == "QCheckBox"
+    assert chk.find("property[@name='text']/string").text == "Plot steady-state spectra"
+
+
+def test_steady_state_plotted_with_species_spectra_toggle(tmp_path):
+    """Steady-state absorption and emission overlays plot as shaded areas with EAS/DAS/SAS and toggle on/off."""
+    _require_qt()
+    from unittest.mock import patch
+    from matplotlib.collections import PolyCollection
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import pymorgan as pm
+    from PyQt6.QtWidgets import QApplication
+    from pyrate_ta.gui.main_window import MainWindow
+    from pyrate_ta.results.fits import GlobalFit
+
+    app = QApplication.instance() or QApplication([])
+    t = np.linspace(0.1, 50.0, 20)
+    probe = np.linspace(450.0, 650.0, 50)
+    z = np.ones((20, 50, 1))
+    ds = pm.Dataset1D(z, t, probe, {"unitsT_ltx": "ps", "unitsL_ltx": "nm"})
+    pdat_file = tmp_path / "test_ss_eas.pdat"
+    pm.export_pdat(ds, pdat_file)
+
+    wl = np.linspace(450.0, 650.0, 50)
+    abs_y = np.exp(-0.5 * ((wl - 520.0) / 25.0) ** 2)
+    em_y = np.exp(-0.5 * ((wl - 580.0) / 30.0) ** 2)
+    abs_file = tmp_path / "abs_dense.csv"
+    abs_file.write_text("Wavelength,Abs\n" + "\n".join(f"{x:.2f},{y:.5f}" for x, y in zip(wl, abs_y)))
+    em_file = tmp_path / "em_dense.csv"
+    em_file.write_text("Wavelength,Em\n" + "\n".join(f"{x:.2f},{y:.5f}" for x, y in zip(wl, em_y)))
+
+    win = MainWindow()
+    try:
+        win.load_path(str(pdat_file))
+        with patch("PyQt6.QtWidgets.QFileDialog.getOpenFileName", return_value=(str(abs_file), "")):
+            win.load_abs_spectrum()
+        with patch("PyQt6.QtWidgets.QFileDialog.getOpenFileName", return_value=(str(em_file), "")):
+            win.load_em_spectrum()
+
+        # Loading steady-state spectra auto-checks the toggle
+        assert win.PlotSteadyStateCheckBox.isChecked() is True
+        assert win.plot_ss_spectra is True
+
+        # Attach a synthetic sequential fit (EAS)
+        s1 = 0.8 * np.exp(-0.5 * ((probe - 490.0) / 20.0) ** 2) - 0.5 * abs_y
+        s2 = 0.4 * np.exp(-0.5 * ((probe - 540.0) / 25.0) ** 2) - 0.3 * em_y
+        S = np.column_stack([s1, s2])
+        C = np.column_stack([np.exp(-t / 2.0), np.exp(-t / 20.0)])
+        win.fit_result = GlobalFit(
+            taus=np.array([2.0, 20.0]),
+            tau_err=np.array([0.1, 0.5]),
+            is_fixed=np.array([False, False]),
+            S=S,
+            R=np.zeros((20, 50)),
+            model_type="Sequential",
+            t=t,
+            probe=probe,
+            C=C,
+        )
+
+        # 1. Embedded EAS plot renders twin axis with shaded areas (PolyCollection) and 'Abs.'/'Em.' legend
+        win._render_species_spectra()
+        ax_spec = win.axis("spectra")
+        twins = [a for a in ax_spec.figure.axes if a is not ax_spec and getattr(a, "_sharex", None) is ax_spec]
+        assert len(twins) == 1
+        ax3 = twins[0]
+        polys = [c for c in ax3.collections if isinstance(c, PolyCollection)]
+        assert len(polys) >= 2
+        leg3 = ax3.get_legend()
+        assert leg3 is not None
+        leg_texts = [t_obj.get_text() for t_obj in leg3.get_texts()]
+        assert "Abs." in leg_texts and "Em." in leg_texts
+
+        # 2. Toggling PlotSteadyStateCheckBox off removes the steady-state twin axis overlay
+        win.PlotSteadyStateCheckBox.setChecked(False)
+        app.processEvents()
+        twins_off = [a for a in ax_spec.figure.axes if a is not ax_spec and getattr(a, "_sharex", None) is ax_spec]
+        assert len(twins_off) == 0
+
+        # 3. Toggling PlotSteadyStateCheckBox back on restores the shaded-area overlay
+        win.PlotSteadyStateCheckBox.setChecked(True)
+        app.processEvents()
+        twins_on = [a for a in ax_spec.figure.axes if a is not ax_spec and getattr(a, "_sharex", None) is ax_spec]
+        assert len(twins_on) == 1
+
+        # 4. Pop-out EAS plot also renders PyMORGAN shaded-area steady-state overlays
+        with patch("matplotlib.pyplot.show"):
+            win._popout_species_spectra()
+            pop_fig = plt.gcf()
+            assert len(pop_fig.axes) >= 2
+            plt.close(pop_fig)
+    finally:
+        app.processEvents()
+        win.close()
+        app.processEvents()
+        plt.close("all")

@@ -354,6 +354,8 @@ class DataTabMixin:
 
     def render_all(self):
         """Redraw every panel from the current dataset (and fit, if there is one)."""
+        if getattr(self, "_render_timer", None) is not None and self._render_timer.isActive():
+            self._render_timer.stop()
         if self.dataset is None:
             return
         pm.apply_style()
