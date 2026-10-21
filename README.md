@@ -6,7 +6,7 @@
 
 [![PyPI - Version](https://img.shields.io/pypi/v/pyrate-ta.svg?logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/pyrate-ta/)
 [![GitHub Release](https://img.shields.io/github/v/release/RJFernandezTeran/PyRATE-TA?logo=github&label=Release)](https://github.com/RJFernandezTeran/PyRATE-TA/releases)
-[![Python >= 3.12](https://img.shields.io/badge/python-%3E%3D3.12-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Python >= 3.11](https://img.shields.io/badge/python-%3E%3D3.11-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![GUI: PyQt6](https://img.shields.io/badge/GUI-PyQt6-41CD52.svg?logo=qt&logoColor=white)](https://riverbankcomputing.com/software/pyqt/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -113,16 +113,28 @@ on this side.
 
 ## Installation
 
-### From PyPI (Recommended)
+### 1. Standalone Desktop Suite Installer (Windows, macOS & Linux)
 
-Install the latest release directly from [PyPI](https://pypi.org/project/pyrate-ta/):
+To run both **PyRATE-TA** and **PyMORGAN** as standalone desktop apps without setting up Python, download the unified **PyMORGAN Suite** installer from [**GitHub Releases**](https://github.com/RJFernandezTeran/PyMORGAN/releases).
+
+- **Automatic Update Notifications & Bleeding-Edge Sync:** On startup, PyRATE-TA automatically checks GitHub and pops up the **Update & Sync Center** when a new version is available. Click **Sync Bleeding-Edge (`main`)** to pull the latest pure-Python updates for both PyRATE-TA and PyMORGAN in seconds without reinstalling, or **Download Installer** for a full release upgrade.
+
+---
+
+### 2. Using PyRATE-TA & PyMORGAN in Your Own Python Environment (Conda, Jupyter, Spyder, VS Code)
+
+#### Option A — 1-Click Local Python Setup (from the Suite Launcher or About Dialog)
+Click **Setup in Local Python...** in the **PyMORGAN Suite Launcher** (or open *Help → About → Setup in Python...* inside PyRATE-TA, or run `pymorgan-setup-env` in a terminal). It auto-detects your Conda, Homebrew, system Python, or virtualenv installations (Python $\ge 3.11$), installs any missing dependencies, configures TeX Gyre Heros fonts, and links `pyrate_ta` and `pymorgan` via a live `pymorgan_suite.pth` bridge that stays automatically synced whenever you update the GUI.
+
+#### Option B — Install Directly from PyPI (`pip` / `uv`)
+Install the latest release directly from [PyPI](https://pypi.org/project/pyrate-ta/) into any Python $\ge 3.11$ environment:
 
 ```bash
-pip install pyrate-ta
+pip install -U pyrate-ta pymorgan
 # or with uv:
-uv pip install pyrate-ta
+uv pip install -U pyrate-ta pymorgan
 
-# Register bundled fonts in matplotlib:
+# Register bundled TeX Gyre Heros fonts in Matplotlib:
 pymorgan-install-fonts
 ```
 
@@ -131,7 +143,9 @@ You can also run the GUI directly without installing using [`uvx`](https://docs.
 uvx --from pyrate-ta pyrate-ta-gui
 ```
 
-### From Source (Development)
+---
+
+### 3. From Source (Development)
 
 Clone the repository and install in editable mode with [uv](https://docs.astral.sh/uv/):
 
@@ -139,7 +153,7 @@ Clone the repository and install in editable mode with [uv](https://docs.astral.
 git clone https://github.com/RJFernandezTeran/PyRATE-TA.git
 cd PyRATE-TA
 
-uv venv                       # create .venv (Python >= 3.12)
+uv venv                       # create .venv (Python >= 3.11)
 
 # Install the package (choose one):
 uv pip install -e .           # core workflow (includes PyQt6 GUI)
