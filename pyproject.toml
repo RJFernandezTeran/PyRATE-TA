@@ -7,7 +7,7 @@ name = "pyrate-ta"
 dynamic = ["version"]
 description = "Kinetic analysis of time-resolved spectroscopy: multi-exponential, global and target analysis."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [{ name = "Dr. Ricardo J. Fernández-Terán" }]
 urls = { Homepage = "https://github.com/RJFernandezTeran/PyRATE-TA", Documentation = "https://github.com/RJFernandezTeran/PyRATE-TA#readme", Repository = "https://github.com/RJFernandezTeran/PyRATE-TA.git", "Bug Tracker" = "https://github.com/RJFernandezTeran/PyRATE-TA/issues" }
@@ -15,11 +15,11 @@ dependencies = [
     # PyMORGAN owns loading, the Dataset objects, Settings and every plotter.
     # The dependency is one-way: pyrate_ta imports pymorgan, never the reverse.
     "pymorgan>=0.6",
-    "numpy>=2.1.0",
-    "scipy>=1.14.1",
-    "tomlkit>=0.13",
-    "PyQt6>=6.7.1",
-    "PyQt6-sip>=13.8.0",
+    "numpy>=1.26.0",
+    "scipy>=1.12.0",
+    "tomlkit>=0.12.0",
+    "PyQt6>=6.6.0",
+    "PyQt6-sip>=13.6.0",
 ]
 
 [project.optional-dependencies]
