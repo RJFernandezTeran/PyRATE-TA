@@ -8,6 +8,7 @@ layout.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -15,10 +16,11 @@ from pathlib import Path
 
 def main() -> int:
     ui_path = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).with_name("main_window.ui")
-    cmd = ["uvx", "--from", "pyside6-essentials", "pyside6-designer", str(ui_path)]
+    uvx = shutil.which("uvx") or "uvx"
+    cmd = [uvx, "--from", "pyside6-essentials", "pyside6-designer", str(ui_path)]
     print(f"Running: {' '.join(cmd)}")
     try:
-        subprocess.Popen(cmd, shell=True)
+        subprocess.Popen(cmd)
     except Exception as exc:
         print(f"Error running command: {exc}")
         return 1

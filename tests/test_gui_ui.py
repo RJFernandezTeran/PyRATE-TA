@@ -8,9 +8,9 @@ separately, in the Qt-dependent suite.
 from __future__ import annotations
 
 import re
-import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import defusedxml.ElementTree as ET
 import pytest
 
 UI_FILE = Path(__file__).resolve().parents[1] / "src" / "pyrate_ta" / "gui" / "main_window.ui"
@@ -572,10 +572,11 @@ def test_about_dialog():
 def test_plot_controls_y_limits_default_to_time_limits():
     """MainWindow applies time_limits setting to plot controls on dataset load and restore."""
     _require_qt()
-    from PyQt6.QtWidgets import QApplication
-    import pyrate_ta as pr
     import numpy as np
     import pymorgan as pm
+    from PyQt6.QtWidgets import QApplication
+
+    import pyrate_ta as pr
     from pyrate_ta.gui.main_window import MainWindow
 
     _app = QApplication.instance() or QApplication([])
@@ -610,8 +611,10 @@ def test_plot_controls_y_limits_default_to_time_limits():
 def test_interactive_mode_cut_picking():
     _require_qt()
     from unittest.mock import patch
+
     import numpy as np
     import pymorgan as pm
+
     from pyrate_ta.gui.main_window import MainWindow
 
     win = MainWindow()
@@ -649,6 +652,7 @@ def test_live_cuts_axes_limits_synced_with_contour():
     _require_qt()
     import numpy as np
     import pymorgan as pm
+
     from pyrate_ta.gui.main_window import MainWindow
 
     win = MainWindow()
@@ -703,9 +707,10 @@ def test_app_initial_file_load(tmp_path):
     import numpy as np
     import pymorgan as pm
     from PyQt6.QtWidgets import QApplication
+
     from pyrate_ta.gui.main_window import MainWindow
 
-    app = QApplication.instance() or QApplication([])
+    QApplication.instance() or QApplication([])
     t = np.linspace(0.1, 50.0, 20)
     probe = np.linspace(450.0, 650.0, 25)
     z = np.ones((20, 25, 1))
@@ -725,10 +730,12 @@ def test_app_initial_file_load(tmp_path):
 def test_steady_state_gui_flow(tmp_path):
     _require_qt()
     from unittest.mock import patch
+
     import matplotlib.pyplot as plt
     import numpy as np
     import pymorgan as pm
     from PyQt6.QtWidgets import QApplication
+
     from pyrate_ta.gui.main_window import MainWindow
 
     app = QApplication.instance() or QApplication([])
@@ -838,11 +845,13 @@ def test_steady_state_plotted_with_species_spectra_toggle(tmp_path):
     """Steady-state absorption and emission overlays plot as shaded areas with EAS/DAS/SAS and toggle on/off."""
     _require_qt()
     from unittest.mock import patch
-    from matplotlib.collections import PolyCollection
+
     import matplotlib.pyplot as plt
     import numpy as np
     import pymorgan as pm
+    from matplotlib.collections import PolyCollection
     from PyQt6.QtWidgets import QApplication
+
     from pyrate_ta.gui.main_window import MainWindow
     from pyrate_ta.results.fits import GlobalFit
 
@@ -858,9 +867,9 @@ def test_steady_state_plotted_with_species_spectra_toggle(tmp_path):
     abs_y = np.exp(-0.5 * ((wl - 520.0) / 25.0) ** 2)
     em_y = np.exp(-0.5 * ((wl - 580.0) / 30.0) ** 2)
     abs_file = tmp_path / "abs_dense.csv"
-    abs_file.write_text("Wavelength,Abs\n" + "\n".join(f"{x:.2f},{y:.5f}" for x, y in zip(wl, abs_y)))
+    abs_file.write_text("Wavelength,Abs\n" + "\n".join(f"{x:.2f},{y:.5f}" for x, y in zip(wl, abs_y, strict=False)))
     em_file = tmp_path / "em_dense.csv"
-    em_file.write_text("Wavelength,Em\n" + "\n".join(f"{x:.2f},{y:.5f}" for x, y in zip(wl, em_y)))
+    em_file.write_text("Wavelength,Em\n" + "\n".join(f"{x:.2f},{y:.5f}" for x, y in zip(wl, em_y, strict=False)))
 
     win = MainWindow()
     try:
@@ -964,6 +973,7 @@ def test_lda_manual_alpha_spinbox_toggles_and_post_lda_buttons_gated(tmp_path):
     import numpy as np
     import pymorgan as pm
     from PyQt6.QtWidgets import QApplication
+
     from pyrate_ta.gui.main_window import MainWindow
     from pyrate_ta.gui.mw_common import _LDA_ONLY_WIDGETS
 

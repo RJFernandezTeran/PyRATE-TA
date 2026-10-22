@@ -18,8 +18,9 @@ from __future__ import annotations
 import sys
 import tempfile
 import traceback
-import xml.etree.ElementTree as ET
 from pathlib import Path
+
+import defusedxml.ElementTree as ET
 
 REPO = Path(__file__).resolve().parents[1]
 # The in-tree source wins over anything installed in the active environment.
