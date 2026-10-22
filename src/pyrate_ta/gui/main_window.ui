@@ -704,11 +704,11 @@
           </widget>
           <widget class="QWidget" name="tabLDA">
            <attribute name="title">
-            <string>Lifetime Density Analysis (LDA)</string>
+            <string>LDA</string>
            </attribute>
            <layout class="QVBoxLayout" name="tabLDALayout">
             <property name="spacing">
-             <number>6</number>
+             <number>5</number>
             </property>
             <property name="leftMargin">
              <number>4</number>
@@ -725,24 +725,39 @@
             <item>
              <widget class="QGroupBox" name="LDAGroup">
               <property name="title">
-               <string>Settings and Control</string>
+               <string>Grid &amp;&amp; Regularisation</string>
               </property>
-              <layout class="QFormLayout" name="ldaFormLayout">
+              <layout class="QGridLayout" name="ldaGridRegLayout">
+               <property name="leftMargin">
+                <number>6</number>
+               </property>
+               <property name="topMargin">
+                <number>6</number>
+               </property>
+               <property name="rightMargin">
+                <number>6</number>
+               </property>
+               <property name="bottomMargin">
+                <number>6</number>
+               </property>
                <property name="horizontalSpacing">
                 <number>6</number>
                </property>
                <property name="verticalSpacing">
-                <number>6</number>
+                <number>4</number>
                </property>
                <item row="0" column="0">
                 <widget class="QLabel" name="LDANtLabel">
                  <property name="text">
-                  <string>Grid points:</string>
+                  <string>Grid Nτ:</string>
                  </property>
                 </widget>
                </item>
                <item row="0" column="1">
                 <widget class="QSpinBox" name="LDANtSpinBox">
+                 <property name="toolTip">
+                  <string>Number of lifetime grid points</string>
+                 </property>
                  <property name="minimum">
                   <number>10</number>
                  </property>
@@ -755,22 +770,90 @@
                 </widget>
                </item>
                <item row="1" column="0">
-                <widget class="QLabel" name="LDAPenaltyLabel">
+                <widget class="QLabel" name="LDATauRangeLabel">
                  <property name="text">
-                  <string>Penalty method:</string>
+                  <string>τ range:</string>
                  </property>
                 </widget>
                </item>
                <item row="1" column="1">
+                <layout class="QHBoxLayout" name="ldaTauRangeLayout">
+                 <property name="spacing">
+                  <number>4</number>
+                 </property>
+                 <item>
+                  <widget class="QDoubleSpinBox" name="LDATauMinDoubleSpinBox">
+                   <property name="toolTip">
+                    <string>Minimum lifetime in grid (in dataset time units, 0 for auto: min(t)/2)</string>
+                   </property>
+                   <property name="specialValueText">
+                    <string>auto</string>
+                   </property>
+                   <property name="decimals">
+                    <number>3</number>
+                   </property>
+                   <property name="minimum">
+                    <double>0.000000000000000</double>
+                   </property>
+                   <property name="maximum">
+                    <double>1000000.000000000000000</double>
+                   </property>
+                   <property name="value">
+                    <double>0.000000000000000</double>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QLabel" name="LDATauDashLabel">
+                   <property name="text">
+                    <string>–</string>
+                   </property>
+                   <property name="alignment">
+                    <set>Qt::AlignmentFlag::AlignCenter</set>
+                   </property>
+                  </widget>
+                 </item>
+                 <item>
+                  <widget class="QDoubleSpinBox" name="LDATauMaxDoubleSpinBox">
+                   <property name="toolTip">
+                    <string>Maximum lifetime in grid (in dataset time units, 0 for auto: 5*max(t))</string>
+                   </property>
+                   <property name="specialValueText">
+                    <string>auto</string>
+                   </property>
+                   <property name="decimals">
+                    <number>3</number>
+                   </property>
+                   <property name="minimum">
+                    <double>0.000000000000000</double>
+                   </property>
+                   <property name="maximum">
+                    <double>1000000.000000000000000</double>
+                   </property>
+                   <property name="value">
+                    <double>0.000000000000000</double>
+                   </property>
+                  </widget>
+                 </item>
+                </layout>
+               </item>
+               <item row="2" column="0">
+                <widget class="QLabel" name="LDAPenaltyLabel">
+                 <property name="text">
+                  <string>Penalty:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
                 <widget class="QComboBox" name="LDAPenaltyCombo">
                  <item>
                   <property name="text">
-                   <string>2nd derivative (D2 smoothness)</string>
+                   <string>2nd deriv. (D2 smooth)</string>
                   </property>
                  </item>
                  <item>
                   <property name="text">
-                   <string>1st derivative (D1 gradient)</string>
+                   <string>1st deriv. (D1 gradient)</string>
                   </property>
                  </item>
                  <item>
@@ -780,14 +863,14 @@
                  </item>
                 </widget>
                </item>
-               <item row="2" column="0">
+               <item row="3" column="0">
                 <widget class="QLabel" name="LDAAlphaLabel">
                  <property name="text">
-                  <string>Alpha method:</string>
+                  <string>α method:</string>
                  </property>
                 </widget>
                </item>
-               <item row="2" column="1">
+               <item row="3" column="1">
                 <widget class="QComboBox" name="LDAAlphaCombo">
                  <item>
                   <property name="text">
@@ -806,19 +889,19 @@
                  </item>
                  <item>
                   <property name="text">
-                   <string>Manual (fixed alpha)</string>
+                   <string>Manual (fixed α)</string>
                   </property>
                  </item>
                 </widget>
                </item>
-               <item row="3" column="0">
+               <item row="4" column="0">
                 <widget class="QLabel" name="LDAAlphaValueLabel">
                  <property name="text">
-                  <string>Alpha value (manual):</string>
+                  <string>Manual α:</string>
                  </property>
                 </widget>
                </item>
-               <item row="3" column="1">
+               <item row="4" column="1">
                 <widget class="QDoubleSpinBox" name="LDAAlphaValueDoubleSpinBox">
                  <property name="toolTip">
                   <string>Manual regularisation parameter alpha value (used when Alpha method is Manual)</string>
@@ -840,225 +923,222 @@
                  </property>
                 </widget>
                </item>
-               <item row="4" column="0">
-                <widget class="QLabel" name="LDATauMinLabel">
-                 <property name="text">
-                  <string>Tau min (0=auto):</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="4" column="1">
-                <widget class="QDoubleSpinBox" name="LDATauMinDoubleSpinBox">
-                 <property name="toolTip">
-                  <string>Minimum lifetime in grid (in dataset time units, 0 for auto: min(t)/2)</string>
-                 </property>
-                 <property name="decimals">
-                  <number>4</number>
-                 </property>
-                 <property name="minimum">
-                  <double>0.000000000000000</double>
-                 </property>
-                 <property name="maximum">
-                  <double>1000000.000000000000000</double>
-                 </property>
-                 <property name="value">
-                  <double>0.000000000000000</double>
-                 </property>
-                </widget>
-               </item>
-               <item row="5" column="0">
-                <widget class="QLabel" name="LDATauMaxLabel">
-                 <property name="text">
-                  <string>Tau max (0=auto):</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="5" column="1">
-                <widget class="QDoubleSpinBox" name="LDATauMaxDoubleSpinBox">
-                 <property name="toolTip">
-                  <string>Maximum lifetime in grid (in dataset time units, 0 for auto: 5*max(t))</string>
-                 </property>
-                 <property name="decimals">
-                  <number>4</number>
-                 </property>
-                 <property name="minimum">
-                  <double>0.000000000000000</double>
-                 </property>
-                 <property name="maximum">
-                  <double>1000000.000000000000000</double>
-                 </property>
-                 <property name="value">
-                  <double>0.000000000000000</double>
-                 </property>
-                </widget>
-               </item>
-               <item row="6" column="0" colspan="2">                 <widget class="QCheckBox" name="LDACoherentArtifactCheckBox">
-                  <property name="toolTip">
-                   <string>Include IRF Gaussian and its first two derivatives at t0 to absorb cross-phase modulation / solvent artefact</string>
-                  </property>
-                  <property name="text">
-                   <string>Include coherent artefact at t0</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="7" column="0">
-                 <widget class="QLabel" name="LDASVDFilterLabel">
-                  <property name="text">
-                   <string>SVD noise filter (0=off):</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="7" column="1">
-                 <widget class="QSpinBox" name="LDASVDFilterSpinBox">
-                  <property name="toolTip">
-                   <string>Pre-filter raw dataset using top K SVD singular components to suppress probe noise (0 = Off)</string>
-                  </property>
-                  <property name="minimum">
-                   <number>0</number>
-                  </property>
-                  <property name="maximum">
-                   <number>30</number>
-                  </property>
-                  <property name="value">
-                   <number>0</number>
-                  </property>
-                 </widget>
-                </item>
-                <item row="8" column="0" colspan="2">
-                 <widget class="QCheckBox" name="LDANonNegativeCheckBox">
-                  <property name="toolTip">
-                   <string>Enforce non-negative amplitudes S >= 0 via regularised Non-Negative Least Squares (NNLS)</string>
-                  </property>
-                  <property name="text">
-                   <string>Enforce non-negative amplitudes S >= 0</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="9" column="0">
-                 <widget class="QLabel" name="LDABootstrapLabel">
-                  <property name="text">
-                   <string>Bootstrap iterations (0=off):</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="9" column="1">
-                 <widget class="QSpinBox" name="LDABootstrapSpinBox">
-                  <property name="toolTip">
-                   <string>Number of Monte Carlo bootstrap iterations for confidence intervals on integrated dynamics A(tau) (0 = Off)</string>
-                  </property>
-                  <property name="minimum">
-                   <number>0</number>
-                  </property>
-                  <property name="maximum">
-                   <number>200</number>
-                  </property>
-                  <property name="value">
-                   <number>0</number>
-                  </property>
-                 </widget>
-                </item>
-                <item row="10" column="0" colspan="2">
-                  <widget class="QCheckBox" name="LDAPeaksCheckBox">
-                   <property name="toolTip">
-                    <string>Automatically locate and annotate major lifetime peak centroids</string>
-                   </property>
-                   <property name="text">
-                    <string>Auto-detect lifetime peak centroids</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="11" column="0" colspan="2">
-                  <widget class="QCheckBox" name="LDADynamicalContentCheckBox">
-                   <property name="toolTip">
-                    <string>Plot dynamical content D(tau) = sqrt(int S^2 dlambda) instead of absolute integral A(tau) = int |S| dlambda</string>
-                   </property>
-                   <property name="text">
-                    <string>Plot dynamical content D(tau) = sqrt(int S^2)</string>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="12" column="0" colspan="2">
-                  <widget class="QCheckBox" name="LDARestrictFitCheckBox">
-                   <property name="toolTip">
-                    <string>Fit only the delay/probe window currently displayed</string>
-                   </property>
-                   <property name="text">
-                    <string>Restrict fit to display limits</string>
-                   </property>
-                   <property name="checked">
-                    <bool>true</bool>
-                   </property>
-                  </widget>
-                 </item>
-                 <item row="13" column="0" colspan="2">
-                  <widget class="QPushButton" name="LDACitationsButton">
-                   <property name="toolTip">
-                    <string>Show literature citations for the selected LDA algorithms</string>
-                   </property>
-                   <property name="text">
-                    <string>Literature Citations...</string>
-                   </property>
-                  </widget>
-                 </item>
               </layout>
              </widget>
             </item>
             <item>
-             <widget class="QPushButton" name="RunLDAButton">
-              <property name="toolTip">
-               <string>Solve Lifetime Density Analysis across the grid</string>
+             <widget class="QGroupBox" name="LDASolverGroup">
+              <property name="title">
+               <string>Solver Options</string>
               </property>
-              <property name="text">
-               <string>Run LDA Analysis</string>
-              </property>
+              <layout class="QGridLayout" name="ldaSolverLayout">
+               <property name="leftMargin">
+                <number>6</number>
+               </property>
+               <property name="topMargin">
+                <number>6</number>
+               </property>
+               <property name="rightMargin">
+                <number>6</number>
+               </property>
+               <property name="bottomMargin">
+                <number>6</number>
+               </property>
+               <property name="horizontalSpacing">
+                <number>6</number>
+               </property>
+               <property name="verticalSpacing">
+                <number>4</number>
+               </property>
+               <item row="0" column="0">
+                <widget class="QLabel" name="LDASVDFilterLabel">
+                 <property name="text">
+                  <string>SVD filter:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QSpinBox" name="LDASVDFilterSpinBox">
+                 <property name="toolTip">
+                  <string>Pre-filter raw dataset using top K SVD singular components to suppress probe noise (0 = Off)</string>
+                 </property>
+                 <property name="specialValueText">
+                  <string>Off</string>
+                 </property>
+                 <property name="minimum">
+                  <number>0</number>
+                 </property>
+                 <property name="maximum">
+                  <number>30</number>
+                 </property>
+                 <property name="value">
+                  <number>0</number>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="2">
+                <widget class="QLabel" name="LDABootstrapLabel">
+                 <property name="text">
+                  <string>Bootstraps:</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="3">
+                <widget class="QSpinBox" name="LDABootstrapSpinBox">
+                 <property name="toolTip">
+                  <string>Number of Monte Carlo bootstrap iterations for confidence intervals on integrated dynamics A(tau) (0 = Off)</string>
+                 </property>
+                 <property name="specialValueText">
+                  <string>Off</string>
+                 </property>
+                 <property name="minimum">
+                  <number>0</number>
+                 </property>
+                 <property name="maximum">
+                  <number>200</number>
+                 </property>
+                 <property name="value">
+                  <number>0</number>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0" colspan="4">
+                <widget class="QCheckBox" name="LDACoherentArtifactCheckBox">
+                 <property name="toolTip">
+                  <string>Include IRF Gaussian and its first two derivatives at t0 to absorb cross-phase modulation / solvent artefact</string>
+                 </property>
+                 <property name="text">
+                  <string>Include coherent artefact at t₀</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="0" colspan="4">
+                <widget class="QCheckBox" name="LDANonNegativeCheckBox">
+                 <property name="toolTip">
+                  <string>Enforce non-negative amplitudes S &gt;= 0 via regularised Non-Negative Least Squares (NNLS)</string>
+                 </property>
+                 <property name="text">
+                  <string>Non-negative amplitudes (S ≥ 0)</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="0" colspan="4">
+                <widget class="QCheckBox" name="LDARestrictFitCheckBox">
+                 <property name="toolTip">
+                  <string>Fit only the delay/probe window currently displayed</string>
+                 </property>
+                 <property name="text">
+                  <string>Restrict fit to display limits</string>
+                 </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+              </layout>
              </widget>
             </item>
             <item>
              <widget class="QGroupBox" name="LDAPlotsGroup">
               <property name="title">
-               <string>Visualisation and Plots</string>
+               <string>LDA Control &amp;&amp; Plots</string>
               </property>
-              <layout class="QVBoxLayout" name="ldaPlotsLayout">
-               <property name="spacing">
+              <layout class="QGridLayout" name="ldaPlotsLayout">
+               <property name="leftMargin">
+                <number>6</number>
+               </property>
+               <property name="topMargin">
+                <number>6</number>
+               </property>
+               <property name="rightMargin">
+                <number>6</number>
+               </property>
+               <property name="bottomMargin">
+                <number>6</number>
+               </property>
+               <property name="horizontalSpacing">
                 <number>4</number>
                </property>
-               <item>
+               <property name="verticalSpacing">
+                <number>4</number>
+               </property>
+               <item row="0" column="0">
+                <widget class="QPushButton" name="RunLDAButton">
+                 <property name="toolTip">
+                  <string>Solve Lifetime Density Analysis across the grid</string>
+                 </property>
+                 <property name="text">
+                  <string>Run LDA</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="0" column="1">
+                <widget class="QPushButton" name="LDACitationsButton">
+                 <property name="toolTip">
+                  <string>Show literature citations for the selected LDA algorithms</string>
+                 </property>
+                 <property name="text">
+                  <string>Citations...</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
                 <widget class="QPushButton" name="PlotLDAMapButton">
                  <property name="toolTip">
                   <string>Open 2D contour map of lifetime distribution</string>
                  </property>
                  <property name="text">
-                  <string>2D Lifetime Map S(tau, probe)</string>
+                  <string>2D Map S(τ, λ)</string>
                  </property>
                 </widget>
                </item>
-               <item>
-                <widget class="QPushButton" name="PlotLCurveButton">
-                 <property name="toolTip">
-                  <string>Open L-Curve plot with corner selection</string>
-                 </property>
-                 <property name="text">
-                  <string>L-Curve Corner Plot</string>
-                 </property>
-                </widget>
-               </item>
-               <item>
+               <item row="1" column="1">
                 <widget class="QPushButton" name="PlotLDASliceButton">
                  <property name="toolTip">
                   <string>Plot 1D slice of S(tau) at selected probe wavelength</string>
                  </property>
                  <property name="text">
-                  <string>Lifetime Slice S(tau)</string>
+                  <string>Slice S(τ)</string>
                  </property>
                 </widget>
                </item>
-               <item>
+               <item row="2" column="0">
+                <widget class="QPushButton" name="PlotLCurveButton">
+                 <property name="toolTip">
+                  <string>Open L-Curve plot with corner selection</string>
+                 </property>
+                 <property name="text">
+                  <string>L-Curve Plot</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="2" column="1">
                 <widget class="QPushButton" name="SaveLDAMapPDATButton">
                  <property name="toolTip">
                   <string>Save fitted 2D lifetime density map S(tau, lambda) as a PyMORGAN PDAT dataset file</string>
                  </property>
                  <property name="text">
-                  <string>Save LDA Map (PDAT)...</string>
+                  <string>Save PDAT...</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="3" column="0" colspan="2">
+                <widget class="QCheckBox" name="LDAPeaksCheckBox">
+                 <property name="toolTip">
+                  <string>Automatically locate and annotate major lifetime peak centroids</string>
+                 </property>
+                 <property name="text">
+                  <string>Annotate peak centroids</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="4" column="0" colspan="2">
+                <widget class="QCheckBox" name="LDADynamicalContentCheckBox">
+                 <property name="toolTip">
+                  <string>Plot dynamical content D(tau) = sqrt(int S^2 dlambda) instead of absolute integral A(tau) = int |S| dlambda</string>
+                 </property>
+                 <property name="text">
+                  <string>Dynamical content D(τ) = √(∫S² dλ)</string>
                  </property>
                 </widget>
                </item>
@@ -1073,7 +1153,7 @@
               <property name="sizeHint" stdset="0">
                <size>
                 <width>10</width>
-                <height>40</height>
+                <height>20</height>
                </size>
               </property>
              </spacer>
@@ -1130,50 +1210,35 @@
           <property name="maximumSize">
            <size>
             <width>380</width>
-            <height>215</height>
+            <height>200</height>
            </size>
           </property>
           <property name="title">
            <string>Additional Plots and cuts</string>
           </property>
-          <layout class="QGridLayout" name="plotsAndCutsGrid">
-           <property name="spacing">
-            <number>4</number>
+          <layout class="QGridLayout" name="plotsAndCutsGrid" columnstretch="1,1">
+           <property name="leftMargin">
+            <number>6</number>
            </property>
-           <item row="3" column="0">
-            <widget class="QCheckBox" name="PP_SavetracesSwitch">
+           <property name="topMargin">
+            <number>3</number>
+           </property>
+           <property name="rightMargin">
+            <number>6</number>
+           </property>
+           <property name="bottomMargin">
+            <number>3</number>
+           </property>
+           <property name="horizontalSpacing">
+            <number>6</number>
+           </property>
+           <property name="verticalSpacing">
+            <number>2</number>
+           </property>
+           <item row="0" column="0">
+            <widget class="QPushButton" name="PP_ContourplotButton">
              <property name="text">
-              <string>Save Traces</string>
-             </property>
-            </widget>
-           </item>
-           <item row="4" column="1">
-            <widget class="QPushButton" name="ExplorerModeButton">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-             <property name="text">
-              <string>Explorer Mode</string>
-             </property>
-             <property name="checkable">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-           <item row="3" column="1">
-            <widget class="QCheckBox" name="PP_IncludeResiduals">
-             <property name="text">
-              <string>Incl. Residuals</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="0">
-            <widget class="QCheckBox" name="PP_InteractivemodeSwitch">
-             <property name="text">
-              <string>Interactive</string>
-             </property>
-             <property name="checked">
-              <bool>true</bool>
+              <string>Contour Plots</string>
              </property>
             </widget>
            </item>
@@ -1181,13 +1246,6 @@
             <widget class="QPushButton" name="PP_PlotKineticsButton">
              <property name="text">
               <string>Plot Kinetics</string>
-             </property>
-            </widget>
-           </item>
-           <item row="2" column="1">
-            <widget class="QCheckBox" name="PP_NormaliseCheckBox">
-             <property name="text">
-              <string>Normalise</string>
              </property>
             </widget>
            </item>
@@ -1205,40 +1263,122 @@
              </property>
             </widget>
            </item>
+           <item row="2" column="0">
+            <widget class="QCheckBox" name="PP_InteractivemodeSwitch">
+             <property name="text">
+              <string>Interactive</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QCheckBox" name="PP_NormaliseCheckBox">
+             <property name="text">
+              <string>Normalise</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="0">
+            <widget class="QCheckBox" name="PP_SavetracesSwitch">
+             <property name="text">
+              <string>Save Traces</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QCheckBox" name="PP_IncludeResiduals">
+             <property name="text">
+              <string>Incl. Residuals</string>
+             </property>
+            </widget>
+           </item>
            <item row="4" column="0">
-            <widget class="QPushButton" name="AddTracestoLivePlotsButton">
+            <widget class="QPushButton" name="PP_ShowSSbutton">
              <property name="enabled">
               <bool>false</bool>
              </property>
+             <property name="toolTip">
+              <string>Plot loaded steady-state absorption and/or emission spectra in a new window</string>
+             </property>
              <property name="text">
-              <string>Add Traces to Live Plots</string>
+              <string>Show SS-spectra</string>
              </property>
             </widget>
            </item>
-           <item row="0" column="0">
-            <widget class="QPushButton" name="PP_ContourplotButton">
-             <property name="text">
-              <string>Contour Plots</string>
+           <item row="4" column="1">
+            <layout class="QHBoxLayout" name="PP_loadSSabs_layout">
+             <property name="spacing">
+              <number>5</number>
              </property>
-            </widget>
+             <item>
+              <widget class="QPushButton" name="PP_LoadSSabs_btn">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>1</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="toolTip">
+                <string>Load a steady-state absorption spectrum file</string>
+               </property>
+               <property name="text">
+                <string>Load SS abs.</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="LEDIndicator" name="PP_led_SSabs" native="true"/>
+             </item>
+            </layout>
            </item>
            <item row="5" column="0">
+            <widget class="QPushButton" name="PP_ClearSSbutton">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="toolTip">
+              <string>Clear all loaded steady-state reference spectra</string>
+             </property>
+             <property name="text">
+              <string>Clear SS-spectra</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <layout class="QHBoxLayout" name="PP_loadSSem_layout">
+             <property name="spacing">
+              <number>5</number>
+             </property>
+             <item>
+              <widget class="QPushButton" name="PP_LoadSSem_btn">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>1</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="toolTip">
+                <string>Load a steady-state emission spectrum file</string>
+               </property>
+               <property name="text">
+                <string>Load SS em.</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="LEDIndicator" name="PP_led_SSem" native="true"/>
+             </item>
+            </layout>
+           </item>
+           <item row="6" column="0" colspan="2">
             <widget class="QCheckBox" name="PP_IncludeSS_CheckBox">
              <property name="toolTip">
               <string>Include steady-state absorption and emission spectra in transient spectral cuts and EAS/SAS/DAS plots</string>
              </property>
              <property name="text">
               <string>Include SS-spectra</string>
-             </property>
-            </widget>
-           </item>
-           <item row="5" column="1">
-            <widget class="QPushButton" name="PP_ShowSSbutton">
-             <property name="toolTip">
-              <string>Plot loaded steady-state absorption and/or emission spectra in a new window</string>
-             </property>
-             <property name="text">
-              <string>Show SS-spectra</string>
              </property>
             </widget>
            </item>

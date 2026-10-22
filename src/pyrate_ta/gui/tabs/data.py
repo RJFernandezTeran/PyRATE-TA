@@ -29,6 +29,7 @@ from ..mw_common import (
     _DATASET_PANELS,
     _DATASET_WIDGETS,
     _FIT_ONLY_WIDGETS,
+    _LDA_ONLY_WIDGETS,
     _UNIMPLEMENTED,
     _safe_set_limits,
 )
@@ -80,6 +81,8 @@ class DataTabMixin:
             logger.debug("load_1D failed for %s (%s)", path, dt, exc_info=True)
             self.dataset = None
             self._current_path = None
+            self.fit_result = None
+            self.lda_result = None
             self.DataLoadedLamp.set_state("error")
             self._set_dataset_widgets_enabled(False)
             QMessageBox.critical(self, "Load failed", str(exc))
@@ -124,6 +127,8 @@ class DataTabMixin:
         """Unload the dataset and blank every embedded axis."""
         self.dataset = None
         self._current_path = None
+        self.fit_result = None
+        self.lda_result = None
         self.DataLoadedLamp.set_state("off")
         self._set_noise_lamp(None)
         self._detach_crosshair()
@@ -155,6 +160,13 @@ class DataTabMixin:
             if widget is not None and getattr(self, "fit_result", None) is None:
                 widget.setEnabled(False)
                 widget.setToolTip("No fit result yet")
+        for name in _LDA_ONLY_WIDGETS:
+            widget = getattr(self, name, None)
+            if widget is not None:
+                has_lda = bool(on) and getattr(self, "lda_result", None) is not None
+                widget.setEnabled(has_lda)
+                if not has_lda:
+                    widget.setToolTip("Run LDA first")
         for name, reason in _UNIMPLEMENTED.items():
             w = getattr(self, name, None)
             if w is not None:

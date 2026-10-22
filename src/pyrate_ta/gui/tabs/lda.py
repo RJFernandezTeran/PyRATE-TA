@@ -72,6 +72,31 @@ class LDATabMixin:
         nn_chk = getattr(self, "LDANonNegativeCheckBox", None)
         if nn_chk is not None:
             nn_chk.setChecked(bool(s.lda_non_negative))
+        self._on_lda_alpha_method_changed()
+        self._set_lda_widgets_enabled(getattr(self, "lda_result", None) is not None)
+
+    def _on_lda_alpha_method_changed(self, *_args) -> None:
+        """Enable Manual alpha spinbox only when Alpha method is set to Manual/Fixed."""
+        alpha_combo = getattr(self, "LDAAlphaCombo", None)
+        alpha_val_spin = getattr(self, "LDAAlphaValueDoubleSpinBox", None)
+        alpha_val_lbl = getattr(self, "LDAAlphaValueLabel", None)
+        if alpha_val_spin is None:
+            return
+        txt = alpha_combo.currentText().lower() if alpha_combo is not None else ""
+        is_manual = ("manual" in txt) or ("fixed" in txt)
+        alpha_val_spin.setEnabled(is_manual)
+        if alpha_val_lbl is not None:
+            alpha_val_lbl.setEnabled(is_manual)
+
+    def _set_lda_widgets_enabled(self, on: bool) -> None:
+        """Enable or disable the post-LDA plot and export buttons."""
+        from ..mw_common import _LDA_ONLY_WIDGETS, _TOOLTIPS
+
+        for name in _LDA_ONLY_WIDGETS:
+            w = getattr(self, name, None)
+            if w is not None:
+                w.setEnabled(bool(on))
+                w.setToolTip(_TOOLTIPS.get(name, "") if on else "Run LDA first")
 
 
     def run_lda_from_gui(self):
@@ -188,6 +213,7 @@ class LDATabMixin:
                 callback=progress_cb,
             )
             self.lda_result = res
+            self._set_lda_widgets_enabled(True)
             self.statusBar().showMessage(res.summary())
 
             # Render inline plots if widgets exist

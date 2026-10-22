@@ -66,12 +66,17 @@ _DATASET_ENABLED_WIDGETS = [
     "ExtraPlotsAfterFit_CheckBox",
     "ShowSchemeButton",
     "LDAGroup",
+    "LDASolverGroup",
+    "LDAPlotsGroup",
     "RunLDAButton",
     "LDACitationsButton",
+    "LDAPeaksCheckBox",
     "LDADynamicalContentCheckBox",
     "LDARestrictFitCheckBox",
     "PlotSteadyStateCheckBox",
     "PP_IncludeSS_CheckBox",
+    "PP_LoadSSabs_btn",
+    "PP_LoadSSem_btn",
 ]
 
 
@@ -87,13 +92,19 @@ _FIT_ONLY_WIDGETS = [
     "PlotConcProfileButton",
 ]
 
+# Enabled only once there is an LDA result: they plot or export the solved map.
+_LDA_ONLY_WIDGETS = [
+    "PlotLDAMapButton",
+    "PlotLCurveButton",
+    "PlotLDASliceButton",
+    "SaveLDAMapPDATButton",
+]
+
 # Buttons whose feature is not implemented yet: disabled, with the reason in the
 # tooltip rather than silently doing nothing.
 
 _UNIMPLEMENTED = {
     "ODEdefinedButton": "ODE-defined models - not implemented yet",
-    "AddTracestoLivePlotsButton": "Live trace overlay - not implemented yet",
-    "ExplorerModeButton": "Explorer mode - not implemented yet",
 }
 
 # Descriptive tooltips for the buttons that do work.
@@ -107,7 +118,6 @@ _TOOLTIPS = {
         "Automatically open the 3-column Data+Fit+Residuals contour plot after a fit"
     ),
     "ResetFitButton": "Discard the fit and go back to the data view",
-
     "CopyTaus_button": "Copy the fitted lifetimes and uncertainties to the clipboard",
     "DefinemodelButton": "Write the kinetic scheme (K-matrix editor) and see its graph",
     "ShowSchemeButton": "Draw the kinetic scheme of the current model, with the rate symbols",
@@ -138,9 +148,10 @@ _TOOLTIPS = {
     "SaveLDAMapPDATButton": "Save fitted 2D lifetime density map S(tau, lambda) as a PyMORGAN PDAT dataset file",
     "LDANtSpinBox": "Number of logarithmically spaced lifetime grid points (default 100)",
     "LDAPenaltyCombo": "Regularisation penalty method: 2nd derivative D2 (smoothness), 1st derivative D1, or Ridge (L=I)",
-    "LDAAlphaCombo": "Selection method for regularisation parameter alpha (L-Curve Corner or GCV Minimum)",
-    "LDATauMinDoubleSpinBox": "Minimum lifetime in grid (in dataset time units, 0 for auto: min(t)/2)",
-    "LDATauMaxDoubleSpinBox": "Maximum lifetime in grid (in dataset time units, 0 for auto: 5*max(t))",
+    "LDAAlphaCombo": "Selection method for regularisation parameter alpha (L-Curve Corner, GCV Minimum, Morozov, or Manual)",
+    "LDAAlphaValueDoubleSpinBox": "Manual regularisation parameter alpha value (used when Alpha method is Manual)",
+    "LDATauMinDoubleSpinBox": "Minimum lifetime in grid (in dataset time units, 0 / auto: min(t)/2)",
+    "LDATauMaxDoubleSpinBox": "Maximum lifetime in grid (in dataset time units, 0 / auto: 5*max(t))",
     "LDACoherentArtifactCheckBox": "Include IRF Gaussian and its first two derivatives at t0 to absorb cross-phase modulation / solvent artefact",
     "LDASVDFilterSpinBox": "Pre-filter raw dataset using top K SVD singular components to suppress probe noise (0 = Off)",
     "LDANonNegativeCheckBox": "Enforce non-negative amplitudes S >= 0 via regularised Non-Negative Least Squares (NNLS)",
@@ -160,6 +171,9 @@ _TOOLTIPS = {
         "Include steady-state absorption and emission spectra in transient spectral cuts and EAS/SAS/DAS plots"
     ),
     "PP_ShowSSbutton": "Plot loaded steady-state absorption and/or emission spectra in a new window",
+    "PP_ClearSSbutton": "Clear all loaded steady-state reference spectra",
+    "PP_LoadSSabs_btn": "Load a steady-state absorption spectrum file",
+    "PP_LoadSSem_btn": "Load a steady-state emission spectrum file",
 }
 
 # Non-linear least-squares algorithms offered in the FitMethod combo, in the
@@ -313,6 +327,26 @@ _PALETTES: dict[str, tuple[str, ...]] = {
         "#a16207",
     ),
     "fit": ("#dbeafe", "#1e3a8a", "#93c5fd", "#bfdbfe", "#0b3b8f", "#bfdbfe", "#2563eb", "#1d4ed8"),
+    "ss_abs": (
+        "#eff6ff",
+        "#1d4ed8",
+        "#bfdbfe",
+        "#dbeafe",
+        "#172554",
+        "#60a5fa",
+        "#2563eb",
+        "#1e40af",
+    ),
+    "ss_em": (
+        "#fef2f2",
+        "#b91c1c",
+        "#fecaca",
+        "#fee2e2",
+        "#450a0a",
+        "#f87171",
+        "#dc2626",
+        "#991b1b",
+    ),
     "neutral": (
         "#f1f5f9",
         "#334155",
@@ -326,37 +360,50 @@ _PALETTES: dict[str, tuple[str, ...]] = {
 }
 
 # Which palette each button uses. Anything unmapped falls back to "neutral".
+# Semantic Hierarchy: primary actions (fit/preview), constructive/destructive
+# actions (load/add vs clear/remove), and active checkable toggles carry colour;
+# secondary plot, export, and utility buttons in the left panel use calm neutral
+# slate, while the right-hand "Additional Plots and cuts" panel preserves
+# PyMORGAN's 4-colour coding.
 _BUTTON_PALETTES: dict[str, str] = {
     "LoadPDATButton": "load",
     "ClearDataButton": "clear",
-    # One colour per model family, so the selected scheme is obvious.
+    # One colour per model family when checked (neutral slate when unchecked).
     "ParallelButton": "model_parallel",
     "SequentialButton": "model_sequential",
     "TargetButton": "model_target",
     "ODEdefinedButton": "model_other",
-    "DefinemodelButton": "model_target",
-    "ShowSchemeButton": "model_other",
-    # The two post-fit figures borrow the colours of the equivalent plot
-    # buttons, so a spectra button looks like a spectra button throughout.
-    "PlotSpeciesSpectraButton": "spectra",
-    "PlotConcProfileButton": "kinetics",
+    "DefinemodelButton": "neutral",
+    "ShowSchemeButton": "neutral",
+    # View toggle buttons light up with the fit accent when checked.
+    "ShowDataButton": "fit",
+    "ShowFitButton": "fit",
+    "ShowResidualsButton": "fit",
+    # Secondary post-fit figures in the left column stay calm neutral slate.
+    "PlotSpeciesSpectraButton": "neutral",
+    "PlotConcProfileButton": "neutral",
+    "CopyTaus_button": "neutral",
     "AddComponentButton": "add",
     "RemoveComponentButton": "remove",
     "PreviewButton": "preview",
     "FITDATAButton": "fit",
     "ResetFitButton": "clear",
+    # Right-hand panel keeps PyMORGAN's 4-colour coding.
     "PP_ContourplotButton": "contour",
     "PP_PlotKineticsButton": "kinetics",
     "PP_SurfaceplotButton": "surface",
     "PP_PlotTrSpectraButton": "spectra",
-    # Lifetime Density Analysis (LDA) tab buttons
-    "RunLDAButton": "fit",
-    "PlotLDAMapButton": "contour",
-    "PlotLCurveButton": "preview",
-    "PlotLDASliceButton": "kinetics",
-    "SaveLDAMapPDATButton": "load",
-    "LDACitationsButton": "neutral",
     "PP_ShowSSbutton": "neutral",
+    "PP_ClearSSbutton": "remove",
+    "PP_LoadSSabs_btn": "ss_abs",
+    "PP_LoadSSem_btn": "ss_em",
+    # LDA tab buttons: primary CTA in royal blue, secondary plot/export buttons neutral.
+    "RunLDAButton": "fit",
+    "PlotLDAMapButton": "neutral",
+    "PlotLCurveButton": "neutral",
+    "PlotLDASliceButton": "neutral",
+    "SaveLDAMapPDATButton": "neutral",
+    "LDACitationsButton": "neutral",
 }
 
 # The primary action buttons are set one step larger.
@@ -366,20 +413,50 @@ _BUTTON_FONT_SIZES: dict[str, str] = {
 }
 
 
-def button_stylesheet(palette: str, dark: bool, font_size: str = "11px") -> str:
+def button_stylesheet(
+    palette: str,
+    dark: bool,
+    font_size: str = "11px",
+    *,
+    checkable: bool = False,
+) -> str:
     """Stylesheet for one button, in the light or dark variant of ``palette``.
+
+    When ``checkable=True``, the resting (unchecked) state uses the neutral
+    slate surface and only lights up with ``palette`` when ``:checked``,
+    preventing groups of mutually exclusive toggle buttons from competing
+    visually when inactive.
 
     A disabled button keeps its per-button colours unless the sheet says
     otherwise, so every sheet ends with a neutral grey ``:disabled`` rule that
     also kills the hover effect.
     """
     lbg, ltx, lbd, lhv, dbg, dtx, dbd, dhv = _PALETTES.get(palette, _PALETTES["neutral"])
+    nlbg, nltx, nlbd, nlhv, _ndbg, _ndtx, _ndbd, _ndhv = _PALETTES["neutral"]
     if dark:
         bg, text, border, hover = dbg, dtx, dbd, dhv
+        nbg, ntext, nborder, nhover = "#1e293b", "#94a3b8", "#334155", "#334155"
         dis_fg, dis_bg, dis_bd = _DISABLED_DARK_FG, _DISABLED_DARK_BG, _DISABLED_DARK_BORDER
     else:
         bg, text, border, hover = lbg, ltx, lbd, lhv
+        nbg, ntext, nborder, nhover = nlbg, nltx, nlbd, nlhv
         dis_fg, dis_bg, dis_bd = _DISABLED_LIGHT_FG, _DISABLED_LIGHT_BG, _DISABLED_LIGHT_BORDER
+
+    if checkable:
+        return (
+            f"QPushButton {{ font-weight: bold; font-size: {font_size}; color: {ntext};"
+            f" background-color: {nbg}; border: 1px solid {nborder}; border-radius: 4px;"
+            f" padding: 3px 6px; }}"
+            f"QPushButton:hover:enabled {{ background-color: {nhover}; border-color: {ntext}; }}"
+            f"QPushButton:pressed {{ background-color: {nborder}; }}"
+            f"QPushButton:checked {{ color: {text}; background-color: {bg};"
+            f" border: 2px solid {text if not dark else border}; }}"
+            f"QPushButton:checked:hover:enabled {{ background-color: {hover};"
+            f" border-color: {text}; }}"
+            f"QPushButton:disabled {{ color: {dis_fg}; background-color: {dis_bg};"
+            f" border: 1px solid {dis_bd}; }}"
+        )
+
     return (
         f"QPushButton {{ font-weight: bold; font-size: {font_size}; color: {text};"
         f" background-color: {bg}; border: 1px solid {border}; border-radius: 4px;"

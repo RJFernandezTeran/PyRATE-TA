@@ -149,9 +149,9 @@ class Settings:
     panel_left: float = 0.09
     panel_right: float = 0.975
     panel_top: float = 0.95
-    panel_bottom: float = 0.11
+    panel_bottom: float = 0.14
     # Gaps between the three panels, as a fraction of the average axis size.
-    panel_hspace: float = 0.45
+    panel_hspace: float = 0.66
     panel_wspace: float = 0.32
 
     # --- Live fit monitor --------------------------------------------------- #

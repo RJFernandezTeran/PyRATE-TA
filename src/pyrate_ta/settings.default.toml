@@ -110,10 +110,10 @@ residuals_hspace = 0.05
 panel_left = 0.09
 panel_right = 0.975
 panel_top = 0.95
-panel_bottom = 0.11
+panel_bottom = 0.14
 
 # Gaps between the three panels (fraction of average axis size).
-panel_hspace = 0.45
+panel_hspace = 0.66
 panel_wspace = 0.32
 
 # -----------------------------------------------------------------------------

@@ -165,7 +165,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         for btn in self.findChildren(QPushButton):
             palette = _BUTTON_PALETTES.get(btn.objectName(), "neutral")
             size = _BUTTON_FONT_SIZES.get(btn.objectName(), "11px")
-            btn.setStyleSheet(button_stylesheet(palette, dark, size))
+            btn.setStyleSheet(button_stylesheet(palette, dark, size, checkable=btn.isCheckable()))
         for name, tip in _TOOLTIPS.items():
             w = getattr(self, name, None)
             if w is not None and not w.toolTip():
@@ -252,6 +252,7 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             self._connect(name, "toggled", lambda checked: checked and self._on_view_changed())
         self._connect("RestrictFitCheckBox", "toggled", lambda *_: self._on_limits_changed())
         self._connect("LDARestrictFitCheckBox", "toggled", lambda *_: self._on_limits_changed())
+        self._connect("LDAAlphaCombo", "currentTextChanged", self._on_lda_alpha_method_changed)
         self._connect("RunLDAButton", "clicked", self.run_lda_from_gui)
         self._connect("PlotLDAMapButton", "clicked", self.popout_lda_map)
         self._connect("PlotLCurveButton", "clicked", self.popout_l_curve)
@@ -273,7 +274,10 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect("PP_SurfaceplotButton", "clicked", lambda: self._popout("surface"))
         self._connect("PP_PlotKineticsButton", "clicked", lambda: self._popout("kinetics"))
         self._connect("PP_PlotTrSpectraButton", "clicked", lambda: self._popout("spectra"))
+        self._connect("PP_LoadSSabs_btn", "clicked", self.load_abs_spectrum)
+        self._connect("PP_LoadSSem_btn", "clicked", self.load_em_spectrum)
         self._connect("PP_ShowSSbutton", "clicked", self._show_steady_state)
+        self._connect("PP_ClearSSbutton", "clicked", self.clear_ref_spectra)
         self._connect("PP_IncludeSS_CheckBox", "toggled", self._on_include_ss_toggled)
 
     def _build_menus(self):
@@ -443,6 +447,9 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
 
         except Exception as exc:
             logger.debug("loading absorption spectrum failed", exc_info=True)
+            led = getattr(self, "PP_led_SSabs", None)
+            if led is not None:
+                led.set_state("error")
             QMessageBox.warning(self, "Load absorption spectrum failed", str(exc))
 
     def load_em_spectrum(self):
@@ -501,6 +508,9 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
 
         except Exception as exc:
             logger.debug("loading emission spectrum failed", exc_info=True)
+            led = getattr(self, "PP_led_SSem", None)
+            if led is not None:
+                led.set_state("error")
             QMessageBox.warning(self, "Load emission spectrum failed", str(exc))
 
     def clear_ref_spectra(self):
@@ -628,13 +638,23 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
 
     def _on_reference_spectra_changed(self):
         """Callback when absorption or emission reference spectra are loaded or cleared."""
-        has_ss = bool(self.ss_abs_spectrum is not None or self.ss_em_spectrum is not None)
+        has_ds = getattr(self, "dataset", None) is not None
+        has_abs = has_ds and self.ss_abs_spectrum is not None
+        has_em = has_ds and self.ss_em_spectrum is not None
+        has_ss = bool(has_abs or has_em)
+        led_abs = getattr(self, "PP_led_SSabs", None)
+        if led_abs is not None:
+            led_abs.set_state("loaded" if has_abs else "off")
+        led_em = getattr(self, "PP_led_SSem", None)
+        if led_em is not None:
+            led_em.set_state("loaded" if has_em else "off")
         act = getattr(self, "actionPlotSteadyState", None)
         if act is not None:
             act.setEnabled(has_ss)
-        btn = getattr(self, "PP_ShowSSbutton", None)
-        if btn is not None:
-            btn.setEnabled(has_ss)
+        for btn_name in ("PP_ShowSSbutton", "PP_ClearSSbutton"):
+            btn = getattr(self, btn_name, None)
+            if btn is not None:
+                btn.setEnabled(has_ss)
 
         gsb_chk = getattr(self, "GSBRecoveryCheckBox", None)
         if gsb_chk is not None and gsb_chk.isChecked():

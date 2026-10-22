@@ -749,28 +749,38 @@ def test_steady_state_gui_flow(tmp_path):
         # 1. Elements exist
         assert hasattr(win, "PP_IncludeSS_CheckBox")
         assert hasattr(win, "PP_ShowSSbutton")
+        assert hasattr(win, "PP_ClearSSbutton")
+        assert hasattr(win, "PP_LoadSSabs_btn")
+        assert hasattr(win, "PP_LoadSSem_btn")
+        assert hasattr(win, "PP_led_SSabs")
+        assert hasattr(win, "PP_led_SSem")
         assert hasattr(win, "actionPlotSteadyState")
         assert win.PP_IncludeSS_CheckBox.isChecked() is False
         assert win.PP_ShowSSbutton.isEnabled() is False
+        assert win.PP_ClearSSbutton.isEnabled() is False
         assert win.actionPlotSteadyState.isEnabled() is False
 
         # 2. Load dataset
         win.load_path(str(pdat_file))
         assert win.dataset is not None
         assert win.PP_IncludeSS_CheckBox.isEnabled() is True
+        assert win.PP_LoadSSabs_btn.isEnabled() is True
+        assert win.PP_LoadSSem_btn.isEnabled() is True
         assert win.PP_ShowSSbutton.isEnabled() is False
+        assert win.PP_ClearSSbutton.isEnabled() is False
 
-        # 3. Load absorption spectrum
+        # 3. Load absorption spectrum via button click
         with patch("PyQt6.QtWidgets.QFileDialog.getOpenFileName", return_value=(str(abs_file), "")):
-            win.load_abs_spectrum()
+            win.PP_LoadSSabs_btn.click()
         assert win.ss_abs is not None
         assert win.ss_abs_spectrum is not None
         assert win.PP_ShowSSbutton.isEnabled() is True
+        assert win.PP_ClearSSbutton.isEnabled() is True
         assert win.actionPlotSteadyState.isEnabled() is True
 
-        # 4. Load emission spectrum
+        # 4. Load emission spectrum via button click
         with patch("PyQt6.QtWidgets.QFileDialog.getOpenFileName", return_value=(str(em_file), "")):
-            win.load_em_spectrum()
+            win.PP_LoadSSem_btn.click()
         assert win.ss_em is not None
         assert win.ss_em_spectrum is not None
 
@@ -784,13 +794,14 @@ def test_steady_state_gui_flow(tmp_path):
             assert plt.get_fignums()
             plt.close("all")
 
-        # 7. Clear reference spectra
-        win.clear_ref_spectra()
+        # 7. Clear reference spectra via Clear SS button click
+        win.PP_ClearSSbutton.click()
         assert win.ss_abs is None
         assert win.ss_em is None
         assert win.ss_abs_spectrum is None
         assert win.ss_em_spectrum is None
         assert win.PP_ShowSSbutton.isEnabled() is False
+        assert win.PP_ClearSSbutton.isEnabled() is False
         assert win.actionPlotSteadyState.isEnabled() is False
     finally:
         app.processEvents()
@@ -916,3 +927,89 @@ def test_steady_state_plotted_with_species_spectra_toggle(tmp_path):
         win.close()
         app.processEvents()
         plt.close("all")
+
+
+
+def test_lda_tab_structure_and_title(ui_names):
+    """The 2nd tab is titled 'LDA' and structured into 3 logical group boxes."""
+    root = ET.parse(UI_FILE).getroot()
+    tab_lda = next(w for w in root.iter("widget") if w.get("name") == "tabLDA")
+    title_el = tab_lda.find("attribute[@name='title']/string")
+    assert title_el is not None
+    assert title_el.text == "LDA"
+
+    assert "LDAGroup" in ui_names
+    assert "LDASolverGroup" in ui_names
+    assert "LDAPlotsGroup" in ui_names
+
+
+def test_checkable_button_stylesheet_uses_neutral_unchecked_and_coloured_checked():
+    """Checkable buttons render neutral slate when unchecked and active palette when checked."""
+    from pyrate_ta.gui.mw_common import button_stylesheet
+
+    ss_light = button_stylesheet("model_parallel", dark=False, checkable=True)
+    # Neutral unchecked base (#f1f5f9) and model_parallel checked fill (#7c3aed)
+    assert "#f1f5f9" in ss_light
+    assert "QPushButton:checked" in ss_light
+    assert "#5b21b6" in ss_light
+
+    ss_dark = button_stylesheet("model_parallel", dark=True, checkable=True)
+    assert "#334155" in ss_dark
+    assert "#6d28d9" in ss_dark
+
+
+def test_lda_manual_alpha_spinbox_toggles_and_post_lda_buttons_gated(tmp_path):
+    """Manual alpha spinbox is enabled only for Manual/Fixed, and LDA plot buttons require lda_result."""
+    _require_qt()
+    import numpy as np
+    import pymorgan as pm
+    from PyQt6.QtWidgets import QApplication
+    from pyrate_ta.gui.main_window import MainWindow
+    from pyrate_ta.gui.mw_common import _LDA_ONLY_WIDGETS
+
+    app = QApplication.instance() or QApplication([])
+    t = np.linspace(0.1, 20.0, 12)
+    probe = np.linspace(450.0, 650.0, 15)
+    z = np.ones((12, 15, 1))
+    ds = pm.Dataset1D(z, t, probe, {"unitsT_ltx": "ps", "unitsL_ltx": "nm"})
+    pdat_file = tmp_path / "test_lda_gate.pdat"
+    pm.export_pdat(ds, pdat_file)
+
+    win = MainWindow()
+    try:
+        win.load_path(str(pdat_file))
+        app.processEvents()
+
+        # Default alpha method is L-Curve Corner -> manual alpha spinbox is disabled
+        win.LDAAlphaCombo.setCurrentIndex(0)
+        app.processEvents()
+        assert win.LDAAlphaValueDoubleSpinBox.isEnabled() is False
+
+        # Switching to Manual (fixed α) enables the manual alpha spinbox
+        for idx in range(win.LDAAlphaCombo.count()):
+            if "manual" in win.LDAAlphaCombo.itemText(idx).lower():
+                win.LDAAlphaCombo.setCurrentIndex(idx)
+                break
+        app.processEvents()
+        assert win.LDAAlphaValueDoubleSpinBox.isEnabled() is True
+
+        # Before running LDA, post-LDA plot/export buttons are disabled even with a dataset loaded
+        assert win.RunLDAButton.isEnabled() is True
+        for wname in _LDA_ONLY_WIDGETS:
+            assert getattr(win, wname).isEnabled() is False
+
+        # Enabling post-LDA widgets activates all 4 buttons
+        win.lda_result = object()
+        win._set_lda_widgets_enabled(True)
+        for wname in _LDA_ONLY_WIDGETS:
+            assert getattr(win, wname).isEnabled() is True
+
+        # Clearing data resets lda_result and disables post-LDA buttons
+        win.clear_data()
+        assert win.lda_result is None
+        for wname in _LDA_ONLY_WIDGETS:
+            assert getattr(win, wname).isEnabled() is False
+    finally:
+        app.processEvents()
+        win.close()
+        app.processEvents()
