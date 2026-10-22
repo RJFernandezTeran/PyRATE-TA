@@ -1,0 +1,66 @@
+name: Build and Deploy Sphinx Documentation
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PyRATE-TA
+        uses: actions/checkout@v4
+        with:
+          path: PyRATE-TA
+
+      - name: Checkout PyMORGAN (sibling dependency)
+        uses: actions/checkout@v4
+        with:
+          repository: RJFernandezTeran/PyMORGAN
+          path: PyMORGAN
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install PyRATE-TA and documentation dependencies
+        working-directory: PyRATE-TA
+        run: |
+          uv venv
+          uv pip install -e ../PyMORGAN
+          uv pip install -e ".[docs]"
+
+      - name: Build Sphinx HTML documentation
+        working-directory: PyRATE-TA
+        run: |
+          uv run sphinx-build -b html docs docs/_build/html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: PyRATE-TA/docs/_build/html
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

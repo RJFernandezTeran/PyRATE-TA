@@ -146,7 +146,9 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         # limit change is worth echoing in the status bar.
         self.plot_controls.limitsChanged.connect(self._on_limits_changed)
         if getattr(self.plot_controls, "restore_btn", None) is not None:
-            self.plot_controls.restore_btn.clicked.connect(self._apply_default_time_limits_to_plot_controls)
+            self.plot_controls.restore_btn.clicked.connect(
+                self._apply_default_time_limits_to_plot_controls
+            )
 
     # ------------------------------------------------------------------ #
     #                             Aesthetics                             #
@@ -236,9 +238,14 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect(
             "GSBRecoveryCheckBox",
             "toggled",
-            lambda *_: self._render_species_spectra() if getattr(self, "fit_result", None) is not None else None,
+            lambda *_: (
+                self._render_species_spectra()
+                if getattr(self, "fit_result", None) is not None
+                else None
+            ),
         )
         from PyQt6.QtWidgets import QButtonGroup
+
         self._view_button_group = getattr(self, "PlotWhatButtonGroup", None)
         if self._view_button_group is None:
             self._view_button_group = QButtonGroup(self)
@@ -262,12 +269,18 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect(
             "LDADynamicalContentCheckBox",
             "toggled",
-            lambda *_: getattr(self, "lda_result", None) is not None and self._render_lda_plots(self.lda_result),
+            lambda *_: (
+                getattr(self, "lda_result", None) is not None
+                and self._render_lda_plots(self.lda_result)
+            ),
         )
         self._connect(
             "LDAPeaksCheckBox",
             "toggled",
-            lambda *_: getattr(self, "lda_result", None) is not None and self._render_lda_plots(self.lda_result),
+            lambda *_: (
+                getattr(self, "lda_result", None) is not None
+                and self._render_lda_plots(self.lda_result)
+            ),
         )
 
         self._connect("PP_ContourplotButton", "clicked", lambda: self._popout("contour"))
@@ -300,21 +313,46 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
 
             menu_file.addSeparator()
             act_pm = QAction("Open in PyMORGAN (Spectral Processing & 2D-IR)...", self)
-            act_pm.setToolTip("Launch PyMORGAN to process, chirp-correct, or stitch transient spectra")
+            act_pm.setToolTip(
+                "Launch PyMORGAN to process, chirp-correct, or stitch transient spectra"
+            )
             act_pm.triggered.connect(self._launch_pymorgan)
             menu_file.addAction(act_pm)
             self.actionOpenPyMORGAN = act_pm
 
         menu_help = getattr(self, "menuHelp", None)
         if menu_help is not None and not hasattr(self, "actionCheckUpdates"):
-            from PyQt6.QtGui import QAction
+            from PyQt6.QtGui import QAction, QKeySequence
+
+            about_act = getattr(self, "actionAbout", None)
+
+            act_man = QAction("User Manual (PDF)", self)
+            act_man.setShortcut(QKeySequence("F1"))
+            act_man.setToolTip("Open the bundled PyRATE-TA User Manual PDF")
+            act_man.triggered.connect(self._open_manual)
+            if about_act is not None:
+                menu_help.insertAction(about_act, act_man)
+            else:
+                menu_help.addAction(act_man)
+            self.actionManual = act_man
+
+            act_sphinx = QAction("Web Documentation (Sphinx)...", self)
+            act_sphinx.setShortcut(QKeySequence("Ctrl+F1"))
+            act_sphinx.setToolTip(
+                "Open the interactive PyData Sphinx HTML documentation (local build or GitHub Pages)"
+            )
+            act_sphinx.triggered.connect(self._open_sphinx_docs)
+            if about_act is not None:
+                menu_help.insertAction(about_act, act_sphinx)
+            else:
+                menu_help.addAction(act_sphinx)
+            self.actionSphinxDocs = act_sphinx
 
             act_upd = QAction("Check for Updates (Release / Bleeding Edge)...", self)
             act_upd.setToolTip(
                 "Check GitHub for new releases or sync bleeding-edge updates from the main branch"
             )
             act_upd.triggered.connect(self._check_for_updates)
-            about_act = getattr(self, "actionAbout", None)
             if about_act is not None:
                 menu_help.insertAction(about_act, act_upd)
                 menu_help.insertSeparator(about_act)
@@ -824,11 +862,36 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             ),
         )
 
+    def _open_manual(self):
+        """Open the bundled manual PDF with the system default application."""
+        from PyQt6.QtCore import QUrl
+        from PyQt6.QtGui import QDesktopServices
+
+        manual = Path(__file__).resolve().parents[3] / "docs" / "main.pdf"
+        if manual.is_file():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(manual)))
+        else:
+            QDesktopServices.openUrl(QUrl("https://rjfernandezteran.github.io/PyRATE-TA/main.pdf"))
+
+    def _open_sphinx_docs(self):
+        """Open the Sphinx HTML documentation (local build if present, otherwise GitHub Pages)."""
+        from PyQt6.QtCore import QUrl
+        from PyQt6.QtGui import QDesktopServices
+
+        local_html = Path(__file__).resolve().parents[3] / "docs" / "_build" / "html" / "index.html"
+        if local_html.is_file():
+            QDesktopServices.openUrl(QUrl.fromLocalFile(str(local_html)))
+        else:
+            QDesktopServices.openUrl(QUrl("https://rjfernandezteran.github.io/PyRATE-TA/"))
+
     def _about(self):
         from .about_dialog import ModernAboutDialog
 
         icon = str(_ICON_DIR / "pirate_ship.png")
         manual_pdf = Path(__file__).resolve().parents[3] / "docs" / "main.pdf"
+        sphinx_html = (
+            Path(__file__).resolve().parents[3] / "docs" / "_build" / "html" / "index.html"
+        )
         dlg = ModernAboutDialog(
             parent=self,
             title="About PyRATE-TA",
@@ -850,7 +913,8 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             banner_path=icon if os.path.exists(icon) else None,
             icon_path=icon if os.path.exists(icon) else None,
             manual_pdf_path=str(manual_pdf) if manual_pdf.exists() else "docs/main.pdf",
+            docs_html_path=str(sphinx_html) if sphinx_html.exists() else None,
+            docs_url="https://rjfernandezteran.github.io/PyRATE-TA/",
             ai_credit="Developed with AI assistance from <b>Google Antigravity</b>.",
         )
         dlg.exec()
-

@@ -69,6 +69,7 @@ PyRATE-TA's path, which is how the fonts are registered for this environment.
     \code{tomlkit}    & 0.13   & Settings file read/write \\
     \code{PyQt6}      & 6.7.1  & Graphical interface framework \\
     \code{PyQt6\_sip} & 13.8.0 & Qt bindings interface \\
+    \code{defusedxml} & 0.7.1  & Hardened XML parsing for Qt Designer UI files \\
     \bottomrule
   \end{tabular}
   \caption{Core dependencies installed by \code{uv pip install -e .}}
@@ -112,10 +113,10 @@ mapped --- an unmapped change is never reported as tested.
 
 \subsection{Versioning}
 
-Every edit to the codebase must bump the version in
+Every edit to the codebase bumps the version in
 \code{src/pyrate_ta/\_\_about\_\_.py}, using \code{python scripts/bump\_version.py}
-rather than editing it by hand. The scheme is \code{0.x.yymmdd.devN} (PEP~440):
-\code{yymmdd} is the build date and \code{N} the iteration within that day,
-restarting at 1 on a new date. A bare letter suffix (\code{0.1.260728d}) is not
-valid PEP~440 and breaks the build. \code{--check} exits non-zero when the
-recorded version was not produced today, which suits a pre-commit hook.
+rather than editing it by hand. The scheme is \code{1.YYMMDD.N} (PEP~440):
+\code{YYMMDD} is the build date and \code{N} is the 1-indexed iteration counter
+within that day (starting at \code{.1} on a new date and incrementing
+sequentially as \code{.2}, \code{.3}, etc.). \code{--check} exits non-zero when
+the recorded version was not produced today, which suits a pre-commit hook.

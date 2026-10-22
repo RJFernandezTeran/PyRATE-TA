@@ -28,6 +28,12 @@ gui = []
 dev = ["ruff>=0.6", "pytest>=8"]
 # Optional: GUI test helpers (qtbot); needs Qt runtime libs present.
 gui-dev = ["pytest-qt>=4"]
+docs = [
+    "sphinx>=7.0",
+    "pydata-sphinx-theme>=0.15",
+    "sphinx-copybutton>=0.5",
+    "sphinx-design>=0.5",
+]
 
 # Co-development: PyMORGAN is picked up from the sibling checkout, so upstream
 # edits are visible without a reinstall. Replace with a plain version pin once

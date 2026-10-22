@@ -27,7 +27,10 @@ compact.
     view selector, \emph{Preview}, \emph{FIT DATA}, \emph{Reset}, the statistic
     read-out, \emph{Copy taus}, and the two post-fit figures ---
     \emph{Plot DAS} (named after the model: DAS, EAS or SAS) and
-    \emph{Plot Conc. Profile}. Both open in their own window, and both are
+    \emph{Plot Conc. Profile}, plus Steady-State Reference overlay controls
+    (loading Absorption / Emission reference spectra and toggling the
+    \emph{Recover pure positive spectra (GSB / SE)} de-bleaching mode). Both
+    post-fit figures open in their own window, and both are
     opened automatically when a fit finishes; each has its own switch
     (\code{plot\_species\_after\_fit}, \code{plot\_profiles\_after\_fit}) in the
     \code{[gui]} section of \code{settings.toml}. A preview does not trigger
@@ -113,18 +116,21 @@ being built; after a fit it draws the fitted one.
 
 A separate \emph{LDA} tab gives access to Lifetime Density Analysis
 (section~\ref{sec:lda}) without switching away from the same dataset. Its
-controls map directly to the keyword arguments of \code{solve\_lda}:
+bottom panel organises the parameters into three side-by-side groups mapping
+directly to the keyword arguments of \code{solve\_lda}:
 
 \begin{description}
-  \item[Grid] Number of log-spaced lifetime points and the
-    $[\tau_\text{min},\,\tau_\text{max}]$ range (auto-filled from the delay axis).
-  \item[Regularisation] Penalty type (\code{ridge} / \code{d1} / \code{d2}) and
-    the alpha method (\code{lcurve} / \code{gcv} / \code{morozov} / \code{fixed}).
-    When \emph{fixed} is selected an alpha entry box appears.
-  \item[Options] Non-negative constraint, SVD pre-filtering (number of
-    components), coherent-artefact suppression, and bootstrap iterations.
-  \item[Run LDA] Executes \code{solve\_lda} headlessly and populates the
-    results table and the lifetime-density map.
+  \item[Regularisation \& Solver] Penalty type (\code{ridge} / \code{d1} / \code{d2}),
+    the alpha selection method (\code{lcurve} / \code{gcv} / \code{morozov} / \code{fixed}),
+    and the explicit $\alpha$ value when \emph{fixed} is selected.
+  \item[Lifetime Grid \& Options] Number of log-spaced lifetime points, the
+    $[\tau_\text{min},\,\tau_\text{max}]$ range (auto-filled from the delay axis),
+    SVD rank pre-filtering ($k$), non-negative constraint, coherent-artefact
+    suppression, and bootstrap iterations.
+  \item[Actions \& Diagnostics] \emph{Run LDA} button (executes \code{solve\_lda}
+    and populates the lifetime-density map and detected peaks table), diagnostic
+    view toggles, and \emph{Export map\ldots} to save the result as a \code{.pdat}
+    file for further plotting in PyMORGAN.
 \end{description}
 
 After a successful run the tab shows: the integrated amplitude spectrum
