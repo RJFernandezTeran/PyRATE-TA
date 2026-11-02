@@ -89,6 +89,15 @@ on this side.
 - **Fit session files** — `pr.save_fit` / `pr.load_fit` round-trip the full
   result (arrays + JSON metadata) to a `.prfit` file. A target fit reopens with
   its scheme in editable text so it can be modified without re-entering it.
+- **Tabular, 2D surface & `.zip` bundle exports** — `pr.export_spectra`,
+  `pr.export_concentrations`, `pr.export_surface`, `pr.export_surfaces`,
+  `pr.export_fit_summary`, and `pr.export_fit_results` (also methods on `fit`
+  and `LoadedFit`) write single-header CSV/TSV files with zero `#` comment lines
+  (ready for OriginPro, Excel, `pandas`, and `numpy`), side-by-side `_abs`
+  GSB/SE-recovered species columns, 2D `data` / `fit` / `residuals` surfaces in
+  `.pdat` orientation (`rows = delays`, `cols = probe`, as `.csv`, `.tsv`, or
+  native PyMORGAN `.pdat`), a companion `.txt` fit report sharing the same
+  `YYYYMMDD-HHMMSS` timestamp, and optional single-file `.zip` archiving.
 - **Honest convergence** — a fit that did not converge raises or is flagged;
   it is never returned as though it had. Parameters resting on a bound and
   near-degenerate lifetimes are reported explicitly.
@@ -209,6 +218,10 @@ data.plot_species_spectra(*fit.as_species_args())
 # --- Save the result ---
 pr.save_fit("scan_fit", fit)          # -> scan_fit.prfit
 
+# --- Export EAS/DAS/SAS, C(t), 2D surfaces & summary (folder or single .zip) ---
+fit.export_results("exports/", dataset=data)
+fit.export_results("scan_bundle.zip", dataset=data, surface_format="pdat")
+
 pm.show_plots()
 ```
 
@@ -226,7 +239,7 @@ src/pyrate_ta/
   results/       KineticFit · GlobalFit · TargetFit · LDAResult · serialisation
   plot/          analysis-only views: concentrations · scheme · matrix · monitor
                                       traces (kinetics + residuals) · lda · style
-  io/            fit-session import/export (.prfit — raw formats belong upstream to PyMORGAN)
+  io/            session (.prfit), tabular/surface/.zip exports (export.py), reference spectra
   gui/           PyQt6 application (pyrate-ta-gui)
     main_window.py / .ui   window assembly, wiring, menus (layout lives in the .ui)
     settings_app.py        standalone analysis-settings editor (pyrate-ta-settings)

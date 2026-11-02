@@ -347,3 +347,201 @@ def test_single_trace_fit_kinetics_and_preview_global_exports(tmp_path):
     ptxt = ppaths.summary.read_text(encoding="utf-8")
     assert "Preview (no optimisation)" in ptxt
     assert "preview evaluation only" in ptxt
+
+
+def test_surfaces_csv_pdat_orientation_and_algebraic_identity(tmp_path):
+    """CSV surfaces strictly follow PDAT orientation (rows=delays, cols=probe) and data - fit == R."""
+    ds, _, _, _, _ = _make_dataset(noise_std=0.004, source=str(tmp_path / "surf_scan.pdat"))
+    fit = pr.fit_global(
+        ds,
+        taus=[3.5, 110.0],
+        irf_fwhm=0.25,
+        coherent_artifact=True,
+        delay_range=(float(T[0]), float(T[-1])),
+        model_type="Sequential",
+    )
+
+    spaths = fit.export_surfaces(tmp_path / "csv_surfaces", dataset=ds, surface_format="csv")
+    assert spaths.data.exists()
+    assert spaths.fit.exists()
+    assert spaths.residuals.exists()
+    assert spaths.summary.exists()
+    assert spaths.archive is None
+
+    # Zero '#' comment lines; first header cell has Delay \ Wavelength, rest are probe coordinates
+    hdr_cells = spaths.fit.read_text(encoding="utf-8").splitlines()[0].split(",")
+    assert hdr_cells[0] == r"Delay (ps) \ Wavelength (nm)"
+    probe_from_hdr = np.array([float(c) for c in hdr_cells[1:]])
+    assert np.allclose(probe_from_hdr, PROBE, atol=1e-8)
+
+    d_tbl = np.loadtxt(spaths.data, delimiter=",", skiprows=1)
+    f_tbl = np.loadtxt(spaths.fit, delimiter=",", skiprows=1)
+    r_tbl = np.loadtxt(spaths.residuals, delimiter=",", skiprows=1)
+
+    # Strictly (Nd, Np + 1): rows = delays, columns = [t | probe_1 .. probe_Np]
+    assert d_tbl.shape == (T.size, PROBE.size + 1)
+    assert f_tbl.shape == (T.size, PROBE.size + 1)
+    assert r_tbl.shape == (T.size, PROBE.size + 1)
+    assert np.allclose(d_tbl[:, 0], T)
+    assert np.allclose(d_tbl[:, 1:] - f_tbl[:, 1:], r_tbl[:, 1:], atol=1e-10)
+    assert np.allclose(f_tbl[:, 1:], fit.fitted_surface, atol=1e-10)
+    assert np.allclose(d_tbl[:, 1:], fit.data_surface, atol=1e-10)
+
+
+def test_surfaces_pdat_roundtrip_uvvis_and_ir_via_pymorgan(tmp_path):
+    """Exported .pdat surfaces reload directly via pymorgan.load_1D with exact axes and units."""
+    for ir_flag, expected_lbl in ((False, "Wavelength"), (True, "Wavenumber")):
+        tag = "ir" if ir_flag else "uv"
+        ds, _, _, _, _ = _make_dataset(
+            ir=ir_flag, noise_std=0.003, source=str(tmp_path / f"{tag}.pdat")
+        )
+        fit = pr.fit_global(ds, taus=[4.0, 120.0], irf_fwhm=0.25)
+        spaths = pr.export_surfaces(
+            fit, tmp_path / f"pdat_{tag}", dataset=ds, surface_format="pdat"
+        )
+        assert spaths.data.suffix == ".pdat"
+        assert spaths.fit.suffix == ".pdat"
+        assert spaths.residuals.suffix == ".pdat"
+
+        loaded_fit_ds = pm.load_1D(spaths.fit)
+        loaded_res_ds = pm.load_1D(spaths.residuals)
+        assert loaded_fit_ds.units["unitsL_lbl"] == expected_lbl
+        assert np.allclose(loaded_fit_ds.delays, fit.t)
+        assert np.allclose(loaded_fit_ds.probe, fit.probe)
+        assert np.allclose(loaded_fit_ds.Z[:, :, 0], fit.fitted_surface, atol=1e-12)
+        assert np.allclose(loaded_res_ds.Z[:, :, 0], fit.R, atol=1e-12)
+
+
+def test_export_fit_results_default_surfaces_and_single_zip_bundle(tmp_path):
+    """export_fit_results includes all 3 surfaces by default and supports single-file .zip output."""
+    import zipfile
+
+    ds, _, _, _, _ = _make_dataset(with_refs=True, source=str(tmp_path / "fullscan.pdat"))
+    fit = pr.fit_global(ds, taus=[4.0, 120.0], irf_fwhm=0.25, model_type="Sequential")
+
+    # 1) Folder export: writes all 6 files (EAS, concentrations, data, fit, residuals, summary)
+    folder_dir = tmp_path / "folder_bundle"
+    paths = fit.export_results(folder_dir, dataset=ds, recover_gsb=True)
+    assert paths.archive is None
+    for p in (
+        paths.spectra,
+        paths.concentrations,
+        paths.data,
+        paths.fit,
+        paths.residuals,
+        paths.summary,
+    ):
+        assert p is not None and p.exists()
+
+    # 2) Single .zip archive export (with PDAT surfaces inside): writes ONLY the .zip file
+    zip_dir = tmp_path / "zip_only"
+    zip_dir.mkdir()
+    zpaths = fit.export_results(
+        zip_dir,
+        dataset=ds,
+        recover_gsb=True,
+        surface_format="pdat",
+        as_zip=True,
+    )
+    assert zpaths.archive is not None and zpaths.archive.exists()
+    assert list(zip_dir.iterdir()) == [zpaths.archive]
+
+    ts = zpaths.timestamp
+    with zipfile.ZipFile(zpaths.archive) as zf:
+        members = set(zf.namelist())
+        expected = {
+            f"fullscan_EAS_{ts}.csv",
+            f"fullscan_concentrations_{ts}.csv",
+            f"fullscan_data_{ts}.pdat",
+            f"fullscan_fit_{ts}.pdat",
+            f"fullscan_residuals_{ts}.pdat",
+            f"fullscan_fit_summary_{ts}.txt",
+        }
+        assert members == expected
+        # Extract the fit .pdat from the .zip and verify PyMORGAN loads it cleanly
+        extracted = tmp_path / "unpacked"
+        zf.extract(f"fullscan_fit_{ts}.pdat", path=extracted)
+        reloaded_pdat = pm.load_1D(extracted / f"fullscan_fit_{ts}.pdat")
+        assert np.allclose(reloaded_pdat.Z[:, :, 0], fit.fitted_surface)
+
+
+def test_loaded_prfit_session_reconstructs_surfaces_and_writes_zip(tmp_path):
+    """A reopened .prfit session reconstructs data/fit/residual surfaces without raw data."""
+    import zipfile
+
+    ds, _, _, _, _ = _make_dataset(noise_std=0.002, source=str(tmp_path / "session_surf.pdat"))
+    fit = pr.fit_global(ds, taus=[4.0, 120.0], irf_fwhm=0.25, model_type="Parallel")
+    prfit_path = pr.save_fit(tmp_path / "session_surf", fit)
+
+    reopened = pr.load_fit(prfit_path)
+    assert np.allclose(reopened.fitted_surface, fit.fitted_surface)
+    assert np.allclose(reopened.data_surface, fit.data_surface)
+
+    zip_out = tmp_path / "from_session.zip"
+    bpaths = reopened.export_results(zip_out)
+    assert bpaths.archive == zip_out
+    assert zip_out.exists()
+    with zipfile.ZipFile(zip_out) as zf:
+        assert len(zf.namelist()) == 6
+
+
+def test_weighted_residuals_surface_live_and_reopened_session(tmp_path):
+    """weighted_residuals=True scales residuals by 1/sigma (including after .prfit reload) and refuses unweighted fits."""
+    ds, _, _, _, _ = _make_dataset(noise_std=0.004, source=str(tmp_path / "weighted_scan.pdat"))
+
+    unweighted = pr.fit_global(
+        ds, taus=[4.0, 120.0], irf_fwhm=0.25, model_type="Sequential", use_weights=False
+    )
+    with pytest.raises(ValueError, match="weighted_residuals=True"):
+        unweighted.export_surface(tmp_path / "bad_res.csv", kind="residuals", weighted_residuals=True)
+
+    weighted = pr.fit_global(
+        ds, taus=[4.0, 120.0], irf_fwhm=0.25, model_type="Sequential", use_weights=True
+    )
+    expected_wres = weighted.weights.w * weighted.R
+
+    live_csv = weighted.export_surface(
+        tmp_path / "live_wres.csv", kind="residuals", dataset=ds, weighted_residuals=True
+    )
+    live_mat = np.loadtxt(live_csv, delimiter=",", skiprows=1)[:, 1:]
+    assert np.allclose(live_mat, expected_wres, rtol=1e-10, atol=1e-12)
+
+    prfit_path = pr.save_fit(tmp_path / "weighted_scan", weighted)
+    reopened = pr.load_fit(prfit_path)
+    reopened_csv = reopened.export_surface(
+        tmp_path / "reopened_wres.csv", kind="residuals", weighted_residuals=True
+    )
+    reopened_mat = np.loadtxt(reopened_csv, delimiter=",", skiprows=1)[:, 1:]
+    assert np.allclose(reopened_mat, expected_wres, rtol=1e-10, atol=1e-12)
+
+
+def test_surface_kinetic_only_vs_artifact_and_tsv_format(tmp_path):
+    """include_artifact=False exports kinetic-only C_kin @ S_kin.T, and surface_format='tsv' writes clean TSV."""
+    ds, _, _, _, _ = _make_dataset(noise_std=0.002, source=str(tmp_path / "art_surf.pdat"))
+    fit = pr.fit_global(
+        ds,
+        taus=[4.0, 120.0],
+        irf_fwhm=0.25,
+        model_type="Sequential",
+        delay_range=(float(T[0]), float(T[-1])),
+        coherent_artifact=True,
+    )
+    assert fit.n_artifact == 3
+    nk = fit.n_kinetic
+
+    tsv_kin = fit.export_surface(
+        tmp_path / "fit_kinetic_only",
+        kind="fit",
+        dataset=ds,
+        surface_format="tsv",
+        include_artifact=False,
+    )
+    assert tsv_kin.suffix == ".tsv"
+    lines = tsv_kin.read_text(encoding="utf-8").splitlines()
+    assert not lines[0].startswith("#")
+    assert "\t" in lines[0]
+
+    loaded = np.loadtxt(tsv_kin, delimiter="\t", skiprows=1)
+    assert np.allclose(loaded[:, 0], fit.t)
+    expected_kin = fit.C[:, :nk] @ fit.S[:, :nk].T
+    assert np.allclose(loaded[:, 1:], expected_kin, rtol=1e-10, atol=1e-12)

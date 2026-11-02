@@ -1,6 +1,7 @@
 """Ground-state bleach (GSB) and stimulated emission (SE) recovery for pure positive component spectra.
 
-Transient absorption data are difference spectra:
+Transient absorption data are difference spectra::
+
     S_diff(lambda) = S_ESA(lambda) - a * sigma_A(lambda) - b * F(lambda)
 
 where:
@@ -10,7 +11,8 @@ where:
     - a >= 0 and b >= 0 are the bleach and emission amplitudes per component.
 
 Adding back the scaled reference spectra converts difference spectra to absolute,
-pure positive (non-negative) component spectra:
+pure positive (non-negative) component spectra::
+
     S_abs[:, i] = S_diff[:, i] + a_i * sigma_A + b_i * F >= 0
 """
 

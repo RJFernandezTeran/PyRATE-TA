@@ -1,19 +1,25 @@
-"""Tabular export of fitted spectra (DAS/EAS/SAS), concentrations ``C(t)``, and reports.
+"""Tabular and 2D surface export of fitted spectra, concentrations, surfaces, and reports.
 
 Exports use a single uncommented header row by default (no ``#`` preamble
 lines), so every CSV opens cleanly in Excel, OriginPro, ``pandas.read_csv``,
 ``numpy.loadtxt(..., delimiter=",", skiprows=1)``, and
-``numpy.genfromtxt(..., delimiter=",", names=True)``. Full run provenance,
-fitted parameters with 1-sigma uncertainties, solver diagnostics, target
-rate matrices, GSB/SE scale factors, and literature citations are written to a
-companion human-readable ``.txt`` summary sharing the same ``YYYYMMDD-HHMMSS``
-timestamp.
+``numpy.genfromtxt(..., delimiter=",", names=True)``. Two-dimensional Data,
+Fit, and Residual surfaces always follow the PyMORGAN ``.pdat`` orientation
+(rows = delays, columns = probe; never transposed) and can be written either as
+clean single-header ``.csv``/``.tsv`` matrices or as native ``.pdat`` files via
+:func:`pymorgan.write_pdat`. Full run provenance, fitted parameters with
+1-sigma uncertainties, solver diagnostics, target rate matrices, GSB/SE scale
+factors, and literature citations are written to a companion human-readable
+``.txt`` summary sharing the same ``YYYYMMDD-HHMMSS`` timestamp, with optional
+single-file ``.zip`` bundling.
 """
 
 from __future__ import annotations
 
 import os
 import re
+import tempfile
+import zipfile
 from datetime import datetime
 from pathlib import Path
 from typing import Any, NamedTuple
@@ -29,6 +35,17 @@ _RULE_HEAVY = "=" * _BANNER_WIDTH
 _RULE_LIGHT = "-" * _BANNER_WIDTH
 
 
+class ExportedSurfacePaths(NamedTuple):
+    """Paths written by :func:`export_surfaces`, plus their shared timestamp."""
+
+    data: Path
+    fit: Path
+    residuals: Path
+    summary: Path
+    timestamp: str
+    archive: Path | None = None
+
+
 class ExportedFitPaths(NamedTuple):
     """Paths written by :func:`export_fit_results`, plus their shared timestamp."""
 
@@ -36,6 +53,10 @@ class ExportedFitPaths(NamedTuple):
     concentrations: Path
     summary: Path
     timestamp: str
+    data: Path | None = None
+    fit: Path | None = None
+    residuals: Path | None = None
+    archive: Path | None = None
 
 
 def make_timestamp(dt: datetime | None = None) -> str:
@@ -828,6 +849,7 @@ def export_spectra(
     dataset: Any = None,
     recover_gsb: bool = False,
     S_abs: Any = None,
+    bleach_result: Any = None,
     gs_spectrum: Any = None,
     em_spectrum: Any = None,
     include_artifact: bool = False,
@@ -953,7 +975,7 @@ def export_spectra(
         headers.append(f"{kind}_{sp} ({tag})" if tag else f"{kind}_{sp}")
         cols.append(S_mat[:, i])
 
-    S_abs_kin, bleach_res = _resolve_gsb_recovery(
+    S_abs_kin, resolved_bleach = _resolve_gsb_recovery(
         fit_obj,
         probe_vec,
         dataset=dataset,
@@ -962,6 +984,7 @@ def export_spectra(
         gs_spectrum=gs_spectrum,
         em_spectrum=em_spectrum,
     )
+    bleach_res = bleach_result if bleach_result is not None else resolved_bleach
     if S_abs_kin is not None:
         for i in range(n_kin):
             sp = species[i] if i < len(species) else f"S{i + 1}"
@@ -1176,7 +1199,442 @@ def export_concentrations(
 
 
 # --------------------------------------------------------------------------- #
-#                 Combined 3-File Export (Shared Timestamp)                   #
+#                 2D Surface Export (Data / Fit / Residuals)                  #
+# --------------------------------------------------------------------------- #
+_SURFACE_ALIASES: dict[str, str] = {
+    "data": "data",
+    "d": "data",
+    "fit": "fit",
+    "fitted": "fit",
+    "model": "fit",
+    "residuals": "residuals",
+    "residual": "residuals",
+    "res": "residuals",
+    "r": "residuals",
+}
+
+
+def compute_surface_matrix(
+    fit: Any,
+    kind: str = "fit",
+    *,
+    include_artifact: bool = True,
+    weighted_residuals: bool = False,
+) -> tuple[str, np.ndarray]:
+    """Return ``(canonical_kind, Z)`` on the ``(Nd, Np)`` PDAT grid (delays x probe).
+
+    * ``"fit"``: ``C @ S.T`` (includes coherent-artefact columns when
+      ``include_artifact=True`` so ``data - fit == residuals`` holds identically).
+    * ``"residuals"``: unweighted ``R = D - C @ S.T`` on ``fit.R`` (or scaled by
+      ``1/sigma`` when ``weighted_residuals=True`` and weights are active).
+    * ``"data"``: ``C_full @ S_full.T + R`` on the exact fitted ``(t, probe)``
+      window, so all three surfaces share identical ``(Nd, Np)`` axes even when
+      reconstructed from a reopened ``.prfit`` session without the raw file.
+    """
+    key = str(kind or "").strip().lower()
+    canon = _SURFACE_ALIASES.get(key)
+    if canon is None:
+        raise ValueError(
+            f"unknown surface kind {kind!r}; expected 'data', 'fit', or 'residuals'"
+        )
+
+    C_raw = _fit_attr(fit, "C", None)
+    S_raw = _fit_attr(fit, "S", None)
+    R_raw = _fit_attr(fit, "R", None)
+
+    if canon == "residuals":
+        if R_raw is None:
+            raise ValueError("this fit result carries no residual matrix (R is None)")
+        R_mat = np.asarray(R_raw, dtype=float)
+        if R_mat.ndim == 1:
+            R_mat = R_mat[:, None]
+        if weighted_residuals:
+            weights = _fit_attr(fit, "weights", None)
+            w_arr = None
+            w_on = False
+            if isinstance(weights, dict):
+                w_on = bool(weights.get("weighted", False))
+                w_arr = weights.get("w")
+            elif weights is not None:
+                w_on = bool(getattr(weights, "weighted", False))
+                w_arr = getattr(weights, "w", None)
+            if w_arr is None:
+                w_arr = getattr(fit, "weights_w", None)
+            if not w_on or w_arr is None:
+                raise ValueError(
+                    "weighted_residuals=True requires a noise-weighted fit carrying "
+                    "per-point 1/sigma weights"
+                )
+            w = np.asarray(w_arr, dtype=float)
+            if w.ndim == 1:
+                w = w[:, None]
+            R_mat = w * R_mat
+        return canon, R_mat
+
+    if C_raw is None or S_raw is None:
+        raise ValueError(
+            f"this fit result carries no concentration/spectra matrices (C or S is None); "
+            f"cannot reconstruct the {canon!r} surface"
+        )
+    C_full = np.atleast_2d(np.asarray(C_raw, dtype=float))
+    S_full = np.atleast_2d(np.asarray(S_raw, dtype=float))
+
+    if canon == "fit":
+        if not include_artifact:
+            n_kin = _n_kinetic(fit)
+            return canon, C_full[:, :n_kin] @ S_full[:, :n_kin].T
+        return canon, C_full @ S_full.T
+
+    # canon == "data"
+    if R_raw is None:
+        raise ValueError(
+            "this fit result carries no residual matrix (R is None); "
+            "cannot reconstruct the 'data' surface"
+        )
+    R_mat = np.asarray(R_raw, dtype=float)
+    if R_mat.ndim == 1:
+        R_mat = R_mat[:, None]
+    return canon, (C_full @ S_full.T) + R_mat
+
+
+def _resolve_surface_axes(
+    fit: Any,
+    dataset: Any,
+    shape: tuple[int, int],
+) -> tuple[np.ndarray, np.ndarray, str, str]:
+    """Return ``(t_vec, probe_vec, delay_header, probe_header)`` for an ``(Nd, Np)`` surface."""
+    Nd, Np = shape
+    t_raw = _fit_attr(fit, "t", None)
+    t_vec = (
+        np.asarray(t_raw, dtype=float).ravel()
+        if t_raw is not None and np.size(t_raw) == Nd
+        else np.arange(Nd, dtype=float)
+    )
+
+    time_u, probe_lbl, probe_u, _ = _resolve_units(fit, dataset)
+    delay_header = f"Delay ({time_u})" if time_u else "Delay"
+
+    fit_probe = _fit_attr(fit, "probe", None)
+    if fit_probe is not None:
+        probe_vec = np.asarray(fit_probe, dtype=float).ravel()
+        if probe_vec.size != Np:
+            raise ValueError(f"fit.probe length ({probe_vec.size}) != surface columns ({Np})")
+        p_base = probe_lbl or "Probe"
+        probe_header = f"{p_base} ({probe_u})" if probe_u else p_base
+    elif (
+        dataset is not None
+        and getattr(dataset, "probe", None) is not None
+        and len(dataset.probe) == Np
+    ):
+        probe_vec = np.asarray(dataset.probe, dtype=float).ravel()
+        p_base = probe_lbl or "Probe"
+        probe_header = f"{p_base} ({probe_u})" if probe_u else p_base
+    else:
+        probe_vec = np.arange(Np, dtype=float)
+        probe_header = "Channel"
+
+    return t_vec, probe_vec, delay_header, probe_header
+
+
+def _resolve_pdat_units(fit: Any, dataset: Any = None) -> tuple[str, str]:
+    """Return ``(time_unit, probe_unit)`` formatted for :func:`pymorgan.write_pdat`."""
+    ds_units = (getattr(dataset, "units", None) or {}) if dataset is not None else {}
+    f_settings = _fit_settings(fit)
+
+    raw_tu = str(ds_units.get("unitsT_ltx") or f_settings.get("time_unit") or "ps")
+    time_u = raw_tu.replace("$", "").strip() or "ps"
+
+    lbl = str(ds_units.get("unitsL_lbl") or f_settings.get("probe_label") or "").strip()
+    raw_pu = str(ds_units.get("unitsL_ltx") or f_settings.get("probe_unit") or "").replace("$", "").strip()
+    if lbl == "Wavenumber" or "cm" in raw_pu.lower():
+        probe_u = "cm^{-1}"
+    elif lbl == "Energy" or raw_pu.lower() == "ev":
+        probe_u = "eV"
+    elif lbl == "Wavelength" or raw_pu.lower() == "nm":
+        probe_u = "nm"
+    else:
+        probe_u = raw_pu or "nm"
+    return time_u, probe_u
+
+
+def _normalize_surface_format(
+    surface_format: str | None = None,
+    target: Path | None = None,
+) -> tuple[str, str]:
+    """Return ``(canonical_format, extension)`` where format is ``'csv'``, ``'tsv'``, or ``'pdat'``."""
+    if target is not None and target.suffix:
+        sfx = target.suffix.lower()
+        if sfx == ".pdat":
+            return "pdat", ".pdat"
+        if sfx in {".tsv", ".txt", ".dat"}:
+            return "tsv", sfx
+        if sfx == ".csv":
+            return "csv", ".csv"
+
+    norm = (surface_format or "csv").strip().lstrip(".").lower()
+    if norm == "pdat":
+        return "pdat", ".pdat"
+    if norm == "tsv":
+        return "tsv", ".tsv"
+    if norm == "csv":
+        return "csv", ".csv"
+    raise ValueError(
+        f"unsupported surface_format {surface_format!r}; expected 'csv', 'tsv', or 'pdat'"
+    )
+
+
+def _pack_zip_archive(zip_path: Path, files: list[Path]) -> Path:
+    """Create a deflate-compressed ``.zip`` archive with flat top-level filenames."""
+    zip_target = zip_path if zip_path.suffix.lower() == ".zip" else zip_path.with_suffix(".zip")
+    zip_target.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_target, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for file_path in files:
+            zf.write(file_path, arcname=file_path.name)
+    logger.info("Packed %d export files into %s", len(files), zip_target)
+    return zip_target
+
+
+def _resolve_bundle_destination(
+    fit_obj: Any,
+    raw_target: Path | None,
+    *,
+    ts: str,
+    bundle_tag: str,
+    as_zip: bool,
+    zip_path: str | os.PathLike[str] | None = None,
+    stem_override: str | None = None,
+) -> tuple[str, Path, Path | None]:
+    """Resolve ``(stem, out_dir, zip_target)`` for folder or ``.zip`` bundle exports."""
+    default_stem, default_dir = _source_stem_and_dir(
+        fit_obj, None if (raw_target is not None and raw_target.suffix.lower() == ".zip") else raw_target
+    )
+    stem = stem_override or default_stem
+
+    if zip_path is not None:
+        zt = Path(zip_path)
+        if zt.suffix.lower() != ".zip":
+            zt = zt.with_suffix(".zip")
+        return stem, default_dir, zt
+
+    if raw_target is not None and raw_target.suffix.lower() == ".zip":
+        raw_stem = raw_target.stem
+        for suffix in (f"_{bundle_tag}_{ts}", f"_{ts}", f"_{bundle_tag}"):
+            if raw_stem.endswith(suffix) and len(raw_stem) > len(suffix):
+                raw_stem = raw_stem[: -len(suffix)]
+                break
+        if stem_override is None and raw_stem:
+            stem = raw_stem
+        return stem, raw_target.parent, raw_target
+
+    if as_zip:
+        return stem, default_dir, default_dir / f"{stem}_{bundle_tag}_{ts}.zip"
+
+    return stem, default_dir, None
+
+
+def export_surface(
+    fit_or_path: Any = None,
+    path_or_fit: Any = None,
+    *,
+    kind: str = "fit",
+    fit: Any = None,
+    path: str | os.PathLike[str] | None = None,
+    dataset: Any = None,
+    surface_format: str = "csv",
+    include_artifact: bool = True,
+    weighted_residuals: bool = False,
+    metadata: bool = False,
+    timestamp: str | None = None,
+    write_summary: bool = False,
+    directory: str | os.PathLike[str] | None = None,
+    fmt: str = "%.12g",
+) -> Path:
+    """Export one 2D surface (``data``, ``fit``, or ``residuals``) in ``.csv``, ``.tsv``, or ``.pdat``.
+
+    Surfaces always follow the PyMORGAN ``.pdat`` convention (never transposed):
+    rows correspond to delays ``t`` (``Nd``) and columns correspond to probe
+    coordinates ``probe`` (``Np``).
+
+    * For ``.csv`` / ``.tsv``: writes a single header row
+      ``Delay (ps) \\ Wavelength (nm), <probe_1>, <probe_2>, ...`` with zero ``#``
+      comment lines by default, followed by ``[t | Z]``.
+    * For ``.pdat``: delegates directly to :func:`pymorgan.write_pdat` so the
+      exported surface loads straight back into PyMORGAN or PyRATE-TA via
+      ``pymorgan.load_1D(...)``.
+    """
+    fit_obj, target = _resolve_fit_and_path(
+        fit_or_path, path_or_fit, fit=fit, path=path, fn_name="export_surface"
+    )
+    canon_kind, z_mat = compute_surface_matrix(
+        fit_obj,
+        kind=kind,
+        include_artifact=include_artifact,
+        weighted_residuals=weighted_residuals,
+    )
+    t_vec, probe_vec, delay_hdr, probe_hdr = _resolve_surface_axes(fit_obj, dataset, z_mat.shape)
+
+    ts = _resolve_timestamp(fit_obj, timestamp)
+    stem, base_dir = _source_stem_and_dir(fit_obj, directory)
+    fmt_kind, ext = _normalize_surface_format(surface_format, target)
+
+    if target is None:
+        target = base_dir / f"{stem}_{canon_kind}_{ts}{ext}"
+    elif not target.suffix:
+        target = target.with_suffix(ext)
+
+    if fmt_kind == "pdat":
+        import pymorgan as pm
+
+        pdat_time_u, pdat_probe_u = _resolve_pdat_units(fit_obj, dataset)
+        written = pm.write_pdat(
+            target,
+            t_vec,
+            probe_vec,
+            z_mat,
+            time_unit=pdat_time_u,
+            probe_unit=pdat_probe_u,
+            noise=None,
+        )
+    else:
+        delim = "\t" if fmt_kind == "tsv" else _delimiter_for(target)
+        corner = f"{delay_hdr} \\ {probe_hdr}"
+        probe_headers = [(fmt % float(x)).strip() for x in probe_vec]
+        headers = [corner, *probe_headers]
+        table = np.column_stack([t_vec, z_mat])
+        comments = (
+            _metadata_comment_lines(
+                fit_obj, ts, kind_title=f"{canon_kind.capitalize()} 2D Surface"
+            )
+            if metadata
+            else None
+        )
+        written = _write_delimited_table(
+            target,
+            headers,
+            table,
+            delimiter=delim,
+            fmt=fmt,
+            comment_lines=comments,
+        )
+
+    logger.info("Exported %s surface to %s", canon_kind, written)
+    if write_summary:
+        summary_path = written.parent / f"{stem}_fit_summary_{ts}.txt"
+        export_fit_summary(fit_obj, summary_path, dataset=dataset, timestamp=ts)
+    return written
+
+
+def export_surfaces(
+    fit_or_dir: Any = None,
+    dir_or_fit: Any = None,
+    *,
+    fit: Any = None,
+    directory: str | os.PathLike[str] | None = None,
+    dataset: Any = None,
+    surface_format: str = "csv",
+    as_zip: bool = False,
+    zip_path: str | os.PathLike[str] | None = None,
+    keep_files: bool = False,
+    stem_override: str | None = None,
+    include_artifact: bool = True,
+    weighted_residuals: bool = False,
+    metadata: bool = False,
+    timestamp: str | None = None,
+    bleach_result: Any = None,
+    fmt: str = "%.12g",
+) -> ExportedSurfacePaths:
+    """Export all 3 surfaces (``data``, ``fit``, ``residuals``) + ``.txt`` summary at once.
+
+    All files share the same ``YYYYMMDD-HHMMSS`` timestamp and ``.pdat``
+    orientation (rows = delays, columns = probe; never transposed). Pass
+    ``as_zip=True`` (or a ``.zip`` path as ``directory`` / ``zip_path``) to
+    bundle everything into a single ``.zip`` archive.
+    """
+    fit_obj, dir_target = _resolve_fit_and_path(
+        fit_or_dir, dir_or_fit, fit=fit, path=directory, fn_name="export_surfaces"
+    )
+    ts = _resolve_timestamp(fit_obj, timestamp)
+    fmt_kind, ext = _normalize_surface_format(surface_format)
+    stem, out_dir, zip_target = _resolve_bundle_destination(
+        fit_obj,
+        dir_target,
+        ts=ts,
+        bundle_tag="surfaces",
+        as_zip=bool(as_zip),
+        zip_path=zip_path,
+        stem_override=stem_override,
+    )
+
+    def _write_into(folder: Path) -> tuple[Path, Path, Path, Path]:
+        d_p = export_surface(
+            fit_obj,
+            folder / f"{stem}_data_{ts}{ext}",
+            kind="data",
+            dataset=dataset,
+            surface_format=fmt_kind,
+            include_artifact=include_artifact,
+            metadata=metadata,
+            timestamp=ts,
+            fmt=fmt,
+        )
+        f_p = export_surface(
+            fit_obj,
+            folder / f"{stem}_fit_{ts}{ext}",
+            kind="fit",
+            dataset=dataset,
+            surface_format=fmt_kind,
+            include_artifact=include_artifact,
+            metadata=metadata,
+            timestamp=ts,
+            fmt=fmt,
+        )
+        r_p = export_surface(
+            fit_obj,
+            folder / f"{stem}_residuals_{ts}{ext}",
+            kind="residuals",
+            dataset=dataset,
+            surface_format=fmt_kind,
+            weighted_residuals=weighted_residuals,
+            metadata=metadata,
+            timestamp=ts,
+            fmt=fmt,
+        )
+        s_p = export_fit_summary(
+            fit_obj,
+            folder / f"{stem}_fit_summary_{ts}.txt",
+            dataset=dataset,
+            timestamp=ts,
+            bleach_result=bleach_result,
+        )
+        return d_p, f_p, r_p, s_p
+
+    if zip_target is not None and not keep_files:
+        with tempfile.TemporaryDirectory() as tmp:
+            d_p, f_p, r_p, s_p = _write_into(Path(tmp))
+            archive = _pack_zip_archive(zip_target, [d_p, f_p, r_p, s_p])
+        return ExportedSurfacePaths(
+            data=Path(d_p.name),
+            fit=Path(f_p.name),
+            residuals=Path(r_p.name),
+            summary=Path(s_p.name),
+            timestamp=ts,
+            archive=archive,
+        )
+
+    d_p, f_p, r_p, s_p = _write_into(out_dir)
+    archive = _pack_zip_archive(zip_target, [d_p, f_p, r_p, s_p]) if zip_target is not None else None
+    return ExportedSurfacePaths(
+        data=d_p,
+        fit=f_p,
+        residuals=r_p,
+        summary=s_p,
+        timestamp=ts,
+        archive=archive,
+    )
+
+
+# --------------------------------------------------------------------------- #
+#           Complete Fit Bundle Export (Folder or Single .zip File)           #
 # --------------------------------------------------------------------------- #
 def export_fit_results(
     fit_or_dir: Any = None,
@@ -1187,30 +1645,54 @@ def export_fit_results(
     dataset: Any = None,
     recover_gsb: bool = False,
     S_abs: Any = None,
+    bleach_result: Any = None,
     gs_spectrum: Any = None,
     em_spectrum: Any = None,
     normalise_concentrations: bool = False,
     include_irf: bool = True,
     include_artifact: bool = False,
+    include_surfaces: bool = True,
+    surface_format: str = "csv",
+    include_artifact_in_surfaces: bool = True,
+    weighted_residuals: bool = False,
+    as_zip: bool = False,
+    zip_path: str | os.PathLike[str] | None = None,
+    keep_files: bool = False,
+    stem_override: str | None = None,
     metadata: bool = False,
     timestamp: str | None = None,
     fmt: str = "%.12g",
 ) -> ExportedFitPaths:
-    """Export spectra CSV, concentrations CSV, and fit summary TXT with one timestamp.
+    """Export DAS/EAS/SAS, concentrations, 2D surfaces, and ``.txt`` summary together.
 
     Accepts ``export_fit_results(fit, directory=None)`` or
-    ``export_fit_results(directory, fit)``. All three output files share the
-    exact same ``YYYYMMDD-HHMMSS`` timestamp:
+    ``export_fit_results(directory, fit)`` (including a ``.zip`` path). Every
+    output file shares the same ``YYYYMMDD-HHMMSS`` timestamp:
 
     * ``<stem>_<DAS|EAS|SAS>_<timestamp>.csv``
     * ``<stem>_concentrations_<timestamp>.csv``
+    * ``<stem>_data_<timestamp>.<csv|tsv|pdat>`` (when ``include_surfaces=True``)
+    * ``<stem>_fit_<timestamp>.<csv|tsv|pdat>`` (when ``include_surfaces=True``)
+    * ``<stem>_residuals_<timestamp>.<csv|tsv|pdat>`` (when ``include_surfaces=True``)
     * ``<stem>_fit_summary_<timestamp>.txt``
+
+    Set ``as_zip=True`` (or pass a ``.zip`` destination path) to bundle all
+    files into a single ``<stem>_fit_results_<timestamp>.zip`` archive.
     """
     fit_obj, dir_target = _resolve_fit_and_path(
         fit_or_dir, dir_or_fit, fit=fit, path=directory, fn_name="export_fit_results"
     )
     ts = _resolve_timestamp(fit_obj, timestamp)
-    stem, out_dir = _source_stem_and_dir(fit_obj, dir_target)
+    fmt_kind, surf_ext = _normalize_surface_format(surface_format)
+    stem, out_dir, zip_target = _resolve_bundle_destination(
+        fit_obj,
+        dir_target,
+        ts=ts,
+        bundle_tag="fit_results",
+        as_zip=bool(as_zip),
+        zip_path=zip_path,
+        stem_override=stem_override,
+    )
     kind = _spectra_kind(fit_obj)
 
     S_mat = np.atleast_2d(np.asarray(_fit_attr(fit_obj, "S"), dtype=float))
@@ -1223,7 +1705,7 @@ def export_fit_results(
     else:
         probe_vec = np.arange(Np, dtype=float)
 
-    S_abs_kin, bleach_res = _resolve_gsb_recovery(
+    S_abs_kin, resolved_bleach = _resolve_gsb_recovery(
         fit_obj,
         probe_vec,
         dataset=dataset,
@@ -1232,41 +1714,105 @@ def export_fit_results(
         gs_spectrum=gs_spectrum,
         em_spectrum=em_spectrum,
     )
+    bleach_res = bleach_result if bleach_result is not None else resolved_bleach
 
-    spec_path = export_spectra(
-        fit_obj,
-        out_dir / f"{stem}_{kind}_{ts}.csv",
-        dataset=dataset,
-        recover_gsb=False,
-        S_abs=S_abs_kin,
-        include_artifact=include_artifact,
-        metadata=metadata,
-        timestamp=ts,
-        write_summary=False,
-        fmt=fmt,
-    )
-    conc_path = export_concentrations(
-        fit_obj,
-        out_dir / f"{stem}_concentrations_{ts}.csv",
-        dataset=dataset,
-        normalise=normalise_concentrations,
-        include_irf=include_irf,
-        include_artifact=include_artifact,
-        metadata=metadata,
-        timestamp=ts,
-        write_summary=False,
-        fmt=fmt,
-    )
-    summary_path = export_fit_summary(
-        fit_obj,
-        out_dir / f"{stem}_fit_summary_{ts}.txt",
-        dataset=dataset,
-        timestamp=ts,
-        bleach_result=bleach_res,
-    )
+    def _write_bundle(folder: Path):
+        spec_p = export_spectra(
+            fit_obj,
+            folder / f"{stem}_{kind}_{ts}.csv",
+            dataset=dataset,
+            recover_gsb=False,
+            S_abs=S_abs_kin,
+            include_artifact=include_artifact,
+            metadata=metadata,
+            timestamp=ts,
+            write_summary=False,
+            fmt=fmt,
+        )
+        conc_p = export_concentrations(
+            fit_obj,
+            folder / f"{stem}_concentrations_{ts}.csv",
+            dataset=dataset,
+            normalise=normalise_concentrations,
+            include_irf=include_irf,
+            include_artifact=include_artifact,
+            metadata=metadata,
+            timestamp=ts,
+            write_summary=False,
+            fmt=fmt,
+        )
+        data_p = fit_p = res_p = None
+        if include_surfaces:
+            data_p = export_surface(
+                fit_obj,
+                folder / f"{stem}_data_{ts}{surf_ext}",
+                kind="data",
+                dataset=dataset,
+                surface_format=fmt_kind,
+                include_artifact=include_artifact_in_surfaces,
+                metadata=metadata,
+                timestamp=ts,
+                fmt=fmt,
+            )
+            fit_p = export_surface(
+                fit_obj,
+                folder / f"{stem}_fit_{ts}{surf_ext}",
+                kind="fit",
+                dataset=dataset,
+                surface_format=fmt_kind,
+                include_artifact=include_artifact_in_surfaces,
+                metadata=metadata,
+                timestamp=ts,
+                fmt=fmt,
+            )
+            res_p = export_surface(
+                fit_obj,
+                folder / f"{stem}_residuals_{ts}{surf_ext}",
+                kind="residuals",
+                dataset=dataset,
+                surface_format=fmt_kind,
+                weighted_residuals=weighted_residuals,
+                metadata=metadata,
+                timestamp=ts,
+                fmt=fmt,
+            )
+        sum_p = export_fit_summary(
+            fit_obj,
+            folder / f"{stem}_fit_summary_{ts}.txt",
+            dataset=dataset,
+            timestamp=ts,
+            bleach_result=bleach_res,
+        )
+        written_list = [spec_p, conc_p]
+        if include_surfaces and data_p is not None and fit_p is not None and res_p is not None:
+            written_list.extend([data_p, fit_p, res_p])
+        written_list.append(sum_p)
+        return spec_p, conc_p, sum_p, data_p, fit_p, res_p, written_list
+
+    if zip_target is not None and not keep_files:
+        with tempfile.TemporaryDirectory() as tmp:
+            spec_p, conc_p, sum_p, data_p, fit_p, res_p, files = _write_bundle(Path(tmp))
+            archive = _pack_zip_archive(zip_target, files)
+        return ExportedFitPaths(
+            spectra=Path(spec_p.name),
+            concentrations=Path(conc_p.name),
+            summary=Path(sum_p.name),
+            timestamp=ts,
+            data=Path(data_p.name) if data_p is not None else None,
+            fit=Path(fit_p.name) if fit_p is not None else None,
+            residuals=Path(res_p.name) if res_p is not None else None,
+            archive=archive,
+        )
+
+    spec_p, conc_p, sum_p, data_p, fit_p, res_p, files = _write_bundle(out_dir)
+    archive = _pack_zip_archive(zip_target, files) if zip_target is not None else None
     return ExportedFitPaths(
-        spectra=spec_path,
-        concentrations=conc_path,
-        summary=summary_path,
+        spectra=spec_p,
+        concentrations=conc_p,
+        summary=sum_p,
         timestamp=ts,
+        data=data_p,
+        fit=fit_p,
+        residuals=res_p,
+        archive=archive,
     )

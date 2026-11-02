@@ -1083,7 +1083,11 @@ def test_export_buttons_layout_and_gui_workflow(tmp_path, ui_names):
         # Disabled before fit
         assert win.ExportSpeciesButton.isEnabled() is False
         assert win.ExportConcButton.isEnabled() is False
+        assert win.ExportSurfacesButton.isEnabled() is False
+        assert win.ExportAllButton.isEnabled() is False
         assert win.actionExportSpectra.isEnabled() is False
+        assert win.actionExportSurfaces.isEnabled() is False
+        assert win.actionExportFitZip.isEnabled() is False
 
         win.load_path(str(pdat_file))
         with patch("PyQt6.QtWidgets.QFileDialog.getOpenFileName", return_value=(str(abs_file), "")):
@@ -1115,9 +1119,13 @@ def test_export_buttons_layout_and_gui_workflow(tmp_path, ui_names):
         for name in (
             "ExportSpeciesButton",
             "ExportConcButton",
+            "ExportSurfacesButton",
+            "ExportAllButton",
             "actionExportSpectra",
             "actionExportConcentrations",
+            "actionExportSurfaces",
             "actionExportFitResults",
+            "actionExportFitZip",
         ):
             getattr(win, name).setEnabled(True)
 
@@ -1152,17 +1160,60 @@ def test_export_buttons_layout_and_gui_workflow(tmp_path, ui_names):
         assert conc_hdr[0] == "Delay (ps)"
         assert conc_hdr[-1] == "IRF"
 
-        # Also verify File -> Export all fit results (CSV + TXT)... action end-to-end
+        # Verify Export Surfaces... button (PDAT filter)
+        surf_dir = tmp_path / "surf_pdat"
+        surf_dir.mkdir()
+        surf_choice = surf_dir / f"gui_export_demo_surfaces_{ts}.pdat"
+        with patch(
+            "PyQt6.QtWidgets.QFileDialog.getSaveFileName",
+            return_value=(str(surf_choice), "PyMORGAN PDAT surfaces (*.pdat)"),
+        ):
+            win.ExportSurfacesButton.click()
+
+        assert (surf_dir / f"gui_export_demo_data_{ts}.pdat").exists()
+        assert (surf_dir / f"gui_export_demo_fit_{ts}.pdat").exists()
+        assert (surf_dir / f"gui_export_demo_residuals_{ts}.pdat").exists()
+        assert (surf_dir / f"gui_export_demo_fit_summary_{ts}.txt").exists()
+
+        # Verify Export All... / File -> Export all fit results (Folder CSV)
         all_dir = tmp_path / "all_exports"
         all_dir.mkdir()
+        all_choice = all_dir / f"gui_export_demo_fit_results_{ts}.csv"
         with patch(
-            "PyQt6.QtWidgets.QFileDialog.getExistingDirectory", return_value=str(all_dir)
+            "PyQt6.QtWidgets.QFileDialog.getSaveFileName",
+            return_value=(str(all_choice), "Folder bundle - CSV surfaces (*.csv)"),
         ):
-            win.actionExportFitResults.trigger()
+            win.ExportAllButton.click()
 
         assert (all_dir / f"gui_export_demo_EAS_{ts}.csv").exists()
         assert (all_dir / f"gui_export_demo_concentrations_{ts}.csv").exists()
+        assert (all_dir / f"gui_export_demo_data_{ts}.csv").exists()
+        assert (all_dir / f"gui_export_demo_fit_{ts}.csv").exists()
+        assert (all_dir / f"gui_export_demo_residuals_{ts}.csv").exists()
         assert (all_dir / f"gui_export_demo_fit_summary_{ts}.txt").exists()
+
+        # Verify File -> Export all fit results to .zip...
+        import zipfile
+
+        zip_dir = tmp_path / "zip_exports"
+        zip_dir.mkdir()
+        zip_choice = zip_dir / f"gui_export_demo_fit_results_{ts}.zip"
+        with patch(
+            "PyQt6.QtWidgets.QFileDialog.getSaveFileName",
+            return_value=(str(zip_choice), "Single ZIP archive - CSV surfaces (*.zip)"),
+        ):
+            win.actionExportFitZip.trigger()
+
+        assert zip_choice.exists()
+        assert list(zip_dir.iterdir()) == [zip_choice]
+        with zipfile.ZipFile(zip_choice) as zf:
+            names = set(zf.namelist())
+            assert f"gui_export_demo_EAS_{ts}.csv" in names
+            assert f"gui_export_demo_concentrations_{ts}.csv" in names
+            assert f"gui_export_demo_data_{ts}.csv" in names
+            assert f"gui_export_demo_fit_{ts}.csv" in names
+            assert f"gui_export_demo_residuals_{ts}.csv" in names
+            assert f"gui_export_demo_fit_summary_{ts}.txt" in names
     finally:
         app.processEvents()
         win.close()

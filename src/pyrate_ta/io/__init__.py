@@ -17,10 +17,14 @@ from __future__ import annotations
 
 from .export import (
     ExportedFitPaths,
+    ExportedSurfacePaths,
+    compute_surface_matrix,
     export_concentrations,
     export_fit_results,
     export_fit_summary,
     export_spectra,
+    export_surface,
+    export_surfaces,
     format_fit_report,
     make_timestamp,
 )
@@ -39,8 +43,12 @@ __all__ = [
     "default_session_path",
     "FORMAT_VERSION",
     "ExportedFitPaths",
+    "ExportedSurfacePaths",
+    "compute_surface_matrix",
     "export_spectra",
     "export_concentrations",
+    "export_surface",
+    "export_surfaces",
     "export_fit_summary",
     "export_fit_results",
     "format_fit_report",

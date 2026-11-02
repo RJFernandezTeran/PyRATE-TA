@@ -642,7 +642,27 @@
                  </property>
                 </widget>
                </item>
-               <item row="6" column="0" colspan="4">
+               <item row="6" column="0" colspan="2">
+                <widget class="QPushButton" name="ExportSurfacesButton">
+                 <property name="toolTip">
+                  <string>Export Data, Fit, and Residual 2D surfaces (CSV or PDAT) plus companion .txt summary</string>
+                 </property>
+                 <property name="text">
+                  <string>Export Surfaces...</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="6" column="2" colspan="2">
+                <widget class="QPushButton" name="ExportAllButton">
+                 <property name="toolTip">
+                  <string>Export DAS/EAS/SAS, concentrations, Data/Fit/Residual surfaces, and .txt summary into a folder or single .zip file</string>
+                 </property>
+                 <property name="text">
+                  <string>Export All...</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="7" column="0" colspan="4">
                 <widget class="QCheckBox" name="PlotSteadyStateCheckBox">
                  <property name="toolTip">
                   <string>Overlay steady-state absorption and emission spectra as shaded areas on species spectra (EAS/DAS/SAS)</string>
@@ -2216,7 +2236,9 @@
     <addaction name="separator"/>
     <addaction name="actionExportSpectra"/>
     <addaction name="actionExportConcentrations"/>
+    <addaction name="actionExportSurfaces"/>
     <addaction name="actionExportFitResults"/>
+    <addaction name="actionExportFitZip"/>
     <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
@@ -2284,15 +2306,37 @@
     <string>Export fitted concentration profiles C(t) to CSV (with companion .txt fit summary)</string>
    </property>
   </action>
+  <action name="actionExportSurfaces">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Export Data / Fit / Residual &amp;surfaces (CSV / PDAT)...</string>
+   </property>
+   <property name="toolTip">
+    <string>Export Data, Fit, and Residual 2D surfaces (CSV, TSV, or PDAT) plus companion .txt summary</string>
+   </property>
+  </action>
   <action name="actionExportFitResults">
    <property name="enabled">
     <bool>false</bool>
    </property>
    <property name="text">
-    <string>Export &amp;all fit results (CSV + TXT)...</string>
+    <string>Export &amp;all fit results (Folder or .zip)...</string>
    </property>
    <property name="toolTip">
-    <string>Export species spectra CSV, concentration profiles CSV, and fit summary TXT into a folder</string>
+    <string>Export DAS/EAS/SAS, concentrations, Data/Fit/Residual surfaces, and .txt summary into a folder or .zip</string>
+   </property>
+  </action>
+  <action name="actionExportFitZip">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Export all fit results to &amp;.zip...</string>
+   </property>
+   <property name="toolTip">
+    <string>Save DAS/EAS/SAS, concentrations, Data/Fit/Residual surfaces, and .txt summary into a single .zip file</string>
    </property>
   </action>
   <action name="actionLoadAbsSpectrum">

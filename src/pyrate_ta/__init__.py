@@ -1,7 +1,7 @@
 """PyRATE-TA: kinetic analysis of time-resolved spectroscopy data.
 
 Multi-exponential fitting, global analysis and target analysis with rate-matrix
-(K-matrix) models, and the DAS/EAS/SAS spectra that come out of them.
+(K-matrix) models, and the DAS/EAS/SAS spectra that come out of them::
 
     import pyrate_ta as pr
     import pymorgan as pm
@@ -82,8 +82,11 @@ _EXPORTS: dict[str, str] = {
     "load_fit": ".io",
     "LoadedFit": ".io",
     "ExportedFitPaths": ".io",
+    "ExportedSurfacePaths": ".io",
     "export_spectra": ".io",
     "export_concentrations": ".io",
+    "export_surface": ".io",
+    "export_surfaces": ".io",
     "export_fit_summary": ".io",
     "export_fit_results": ".io",
     "format_fit_report": ".io",
@@ -153,11 +156,14 @@ if TYPE_CHECKING:  # keeps type checkers and IDE completion fully informed
     from .helpers import format_lifetime, parse_lifetime
     from .io import (
         ExportedFitPaths,
+        ExportedSurfacePaths,
         LoadedFit,
         export_concentrations,
         export_fit_results,
         export_fit_summary,
         export_spectra,
+        export_surface,
+        export_surfaces,
         format_fit_report,
         load_fit,
         make_timestamp,
@@ -275,8 +281,11 @@ __all__ = [
     "load_fit",
     "LoadedFit",
     "ExportedFitPaths",
+    "ExportedSurfacePaths",
     "export_spectra",
     "export_concentrations",
+    "export_surface",
+    "export_surfaces",
     "export_fit_summary",
     "export_fit_results",
     "format_fit_report",

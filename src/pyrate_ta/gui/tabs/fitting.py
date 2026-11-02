@@ -569,69 +569,244 @@ class FitTabMixin:
         )
         return written
 
-    def export_all_fit_results(self, directory: str | Path | None = None):
-        """Export DAS/EAS/SAS CSV, concentrations CSV, and summary TXT into one folder."""
+    def export_surfaces(
+        self,
+        target: str | Path | None = None,
+        *,
+        surface_format: str = "csv",
+        as_zip: bool = False,
+    ):
+        """Export Data, Fit, and Residual 2D surfaces + ``.txt`` summary at once."""
+        if isinstance(target, bool):
+            target = None
+        fit = getattr(self, "fit_result", None)
+        if fit is None:
+            return None
+
+        ts = getattr(fit, "timestamp", None) or pr.make_timestamp()
+        stem = self._export_stem(fit)
+        start_dir = Path(self._get_dialog_dir())
+        stem_override: str | None = None
+        want_zip = bool(as_zip)
+        fmt = surface_format.strip().lstrip(".").lower() or "csv"
+
+        if target is None:
+            filters = (
+                "CSV surfaces (*.csv);;"
+                "PyMORGAN PDAT surfaces (*.pdat);;"
+                "Tab-separated surfaces (*.tsv);;"
+                "Single ZIP archive - CSV surfaces (*.zip);;"
+                "Single ZIP archive - PDAT surfaces (*.zip)"
+            )
+            init_filter = (
+                "Single ZIP archive - CSV surfaces (*.zip)"
+                if want_zip
+                else ("PyMORGAN PDAT surfaces (*.pdat)" if fmt == "pdat" else "CSV surfaces (*.csv)")
+            )
+            default_ext = "zip" if want_zip else fmt
+            default_path = start_dir / f"{stem}_surfaces_{ts}.{default_ext}"
+            chosen, selected_filter = QFileDialog.getSaveFileName(
+                self,
+                "Export Data, Fit & Residual Surfaces",
+                str(default_path),
+                filters,
+                init_filter,
+            )
+            if not chosen:
+                return None
+            chosen_path = Path(chosen)
+            sfx = chosen_path.suffix.lower()
+            if sfx == ".pdat" or "PDAT" in selected_filter:
+                fmt = "pdat"
+            elif sfx == ".tsv" or "Tab-separated" in selected_filter:
+                fmt = "tsv"
+            else:
+                fmt = "csv"
+            want_zip = sfx == ".zip" or "ZIP" in selected_filter
+            raw_stem = chosen_path.stem
+            for suffix_tag in (f"_surfaces_{ts}", f"_{ts}", "_surfaces"):
+                if raw_stem.endswith(suffix_tag) and len(raw_stem) > len(suffix_tag):
+                    raw_stem = raw_stem[: -len(suffix_tag)]
+                    break
+            if raw_stem:
+                stem_override = raw_stem
+            dest = chosen_path if want_zip else chosen_path.parent
+        else:
+            tp = Path(target)
+            sfx = tp.suffix.lower()
+            if sfx == ".zip":
+                want_zip = True
+                dest = tp
+            elif sfx in {".pdat", ".tsv", ".csv"}:
+                fmt = sfx.lstrip(".")
+                raw_stem = tp.stem
+                for suffix_tag in (f"_surfaces_{ts}", f"_{ts}", "_surfaces"):
+                    if raw_stem.endswith(suffix_tag) and len(raw_stem) > len(suffix_tag):
+                        raw_stem = raw_stem[: -len(suffix_tag)]
+                        break
+                stem_override = raw_stem or stem
+                dest = tp.parent
+            else:
+                dest = tp
+                if stem_override is None:
+                    stem_override = stem
+
+        species_ds, _, bleach_res, _ = self._active_gsb_recovery_for_export()
+        ds_ref = species_ds if species_ds is not None else self.dataset
+
+        try:
+            paths = pr.export_surfaces(
+                fit,
+                dest,
+                dataset=ds_ref,
+                surface_format=fmt,
+                as_zip=want_zip,
+                stem_override=stem_override,
+                timestamp=ts,
+                bleach_result=bleach_res,
+            )
+        except Exception as exc:
+            logger.debug("exporting 2D surfaces failed", exc_info=True)
+            QMessageBox.warning(self, "Export surfaces failed", str(exc))
+            return None
+
+        if paths.archive is not None:
+            self._last_dir = str(paths.archive.parent)
+            self.statusBar().showMessage(
+                f"Exported surfaces bundle to {paths.archive.name}", 6000
+            )
+        else:
+            self._last_dir = str(paths.data.parent)
+            self.statusBar().showMessage(
+                f"Exported {paths.data.name}, {paths.fit.name}, {paths.residuals.name}, and {paths.summary.name}",
+                6000,
+            )
+        return paths
+
+    def export_all_fit_results(
+        self,
+        directory: str | Path | None = None,
+        *,
+        surface_format: str = "csv",
+        as_zip: bool = False,
+    ):
+        """Export DAS/EAS/SAS, concentrations, 2D surfaces, and ``.txt`` summary (folder or ``.zip``)."""
         if isinstance(directory, bool):
             directory = None
         fit = getattr(self, "fit_result", None)
         if fit is None:
             return None
 
-        if directory is None:
-            chosen_dir = QFileDialog.getExistingDirectory(
-                self,
-                "Select folder to export fit results",
-                self._get_dialog_dir(),
-            )
-            if not chosen_dir:
-                return None
-            out_dir = Path(chosen_dir)
-        else:
-            out_dir = Path(directory)
-
         ts = getattr(fit, "timestamp", None) or pr.make_timestamp()
         stem = self._export_stem(fit)
-        kind = fit.spectra_kind
+        start_dir = Path(self._get_dialog_dir())
+        stem_override: str | None = None
+        want_zip = bool(as_zip)
+        fmt = surface_format.strip().lstrip(".").lower() or "csv"
+
+        if directory is None:
+            filters = (
+                "Folder bundle - CSV surfaces (*.csv);;"
+                "Folder bundle - PDAT surfaces (*.pdat);;"
+                "Single ZIP archive - CSV surfaces (*.zip);;"
+                "Single ZIP archive - PDAT surfaces (*.zip)"
+            )
+            init_filter = (
+                (
+                    "Single ZIP archive - PDAT surfaces (*.zip)"
+                    if fmt == "pdat"
+                    else "Single ZIP archive - CSV surfaces (*.zip)"
+                )
+                if want_zip
+                else (
+                    "Folder bundle - PDAT surfaces (*.pdat)"
+                    if fmt == "pdat"
+                    else "Folder bundle - CSV surfaces (*.csv)"
+                )
+            )
+            default_ext = "zip" if want_zip else fmt
+            default_path = start_dir / f"{stem}_fit_results_{ts}.{default_ext}"
+            chosen, selected_filter = QFileDialog.getSaveFileName(
+                self,
+                "Export All Fit Results (Spectra, Concentrations, Surfaces & Summary)",
+                str(default_path),
+                filters,
+                init_filter,
+            )
+            if not chosen:
+                return None
+            chosen_path = Path(chosen)
+            sfx = chosen_path.suffix.lower()
+            if sfx == ".pdat" or "PDAT" in selected_filter:
+                fmt = "pdat"
+            elif sfx == ".tsv":
+                fmt = "tsv"
+            else:
+                fmt = "csv"
+            want_zip = sfx == ".zip" or "ZIP" in selected_filter
+            raw_stem = chosen_path.stem
+            for suffix_tag in (f"_fit_results_{ts}", f"_{ts}", "_fit_results"):
+                if raw_stem.endswith(suffix_tag) and len(raw_stem) > len(suffix_tag):
+                    raw_stem = raw_stem[: -len(suffix_tag)]
+                    break
+            if raw_stem:
+                stem_override = raw_stem
+            dest = chosen_path if want_zip else chosen_path.parent
+        else:
+            tp = Path(directory)
+            sfx = tp.suffix.lower()
+            if sfx == ".zip":
+                want_zip = True
+                dest = tp
+            elif sfx in {".pdat", ".tsv", ".csv"}:
+                fmt = sfx.lstrip(".")
+                raw_stem = tp.stem
+                for suffix_tag in (f"_fit_results_{ts}", f"_{ts}", "_fit_results"):
+                    if raw_stem.endswith(suffix_tag) and len(raw_stem) > len(suffix_tag):
+                        raw_stem = raw_stem[: -len(suffix_tag)]
+                        break
+                stem_override = raw_stem or stem
+                dest = tp.parent
+            else:
+                dest = tp
+                if stem_override is None:
+                    stem_override = stem
+
         species_ds, s_abs, bleach_res, want_gsb = self._active_gsb_recovery_for_export()
         ds_ref = species_ds if species_ds is not None else self.dataset
 
         try:
-            spec_p = pr.export_spectra(
+            paths = pr.export_fit_results(
                 fit,
-                out_dir / f"{stem}_{kind}_{ts}.csv",
+                dest,
                 dataset=ds_ref,
                 recover_gsb=want_gsb and (s_abs is None),
                 S_abs=s_abs,
-                timestamp=ts,
-            )
-            conc_p = pr.export_concentrations(
-                fit,
-                out_dir / f"{stem}_concentrations_{ts}.csv",
-                dataset=ds_ref,
-                timestamp=ts,
-            )
-            sum_p = pr.export_fit_summary(
-                fit,
-                out_dir / f"{stem}_fit_summary_{ts}.txt",
-                dataset=ds_ref,
-                timestamp=ts,
                 bleach_result=bleach_res,
+                include_surfaces=True,
+                surface_format=fmt,
+                as_zip=want_zip,
+                stem_override=stem_override,
+                timestamp=ts,
             )
         except Exception as exc:
             logger.debug("exporting all fit results failed", exc_info=True)
             QMessageBox.warning(self, "Export fit results failed", str(exc))
             return None
 
-        self._last_dir = str(out_dir)
-        self.statusBar().showMessage(
-            f"Exported {spec_p.name}, {conc_p.name}, and {sum_p.name}", 6000
-        )
-        return pr.ExportedFitPaths(
-            spectra=spec_p,
-            concentrations=conc_p,
-            summary=sum_p,
-            timestamp=ts,
-        )
+        if paths.archive is not None:
+            self._last_dir = str(paths.archive.parent)
+            self.statusBar().showMessage(
+                f"Exported complete fit bundle to {paths.archive.name}", 6000
+            )
+        else:
+            self._last_dir = str(paths.spectra.parent)
+            self.statusBar().showMessage(
+                f"Exported {paths.spectra.name}, {paths.concentrations.name}, "
+                f"3 surfaces ({fmt.upper()}), and {paths.summary.name}",
+                6000,
+            )
+        return paths
 
     def _show_fit_result(self, preview: bool = False):
         """Fill the read-outs, enable the views, and draw the outcome."""

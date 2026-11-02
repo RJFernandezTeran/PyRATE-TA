@@ -27,7 +27,10 @@ compact.
     view selector, \emph{Preview}, \emph{FIT DATA}, \emph{Reset}, the statistic
     read-out, \emph{Copy taus}, and the two post-fit figures ---
     \emph{Plot DAS} (named after the model: DAS, EAS or SAS) and
-    \emph{Plot Conc. Profile}, plus Steady-State Reference overlay controls
+    \emph{Plot Conc. Profile}, a $2\times2$ export row (\emph{Export DAS\ldots} /
+    \emph{EAS\ldots} / \emph{SAS\ldots}, \emph{Export Conc\ldots},
+    \emph{Export Surfaces\ldots}, and \emph{Export All\ldots}, mirrored under
+    \textbf{File $\to$ Export}), plus Steady-State Reference overlay controls
     (loading Absorption / Emission reference spectra and toggling the
     \emph{Recover pure positive spectra (GSB / SE)} de-bleaching mode). Both
     post-fit figures open in their own window, and both are
@@ -166,6 +169,16 @@ converges (buttons reopen them at will):
     beside the contour and read on the same time axis. For a sequential or
     target model this is where the plot earns its keep: it shows \emph{when}
     each species is present, and therefore which spectrum can be trusted where.
+  \item[Tabular, surface \& \code{.zip} exports] Once a fit has run (or a
+    \code{.prfit} session is loaded), \emph{Export DAS/EAS/SAS\ldots} and
+    \emph{Export Conc\ldots} write single-header CSVs paired with a companion
+    \code{_fit_summary_<ts>.txt} report; \emph{Export Surfaces\ldots} writes
+    all three 2D surfaces (\code{data}, \code{fit}, \code{residuals} in
+    \code{.pdat} orientation: rows = delays, columns = probe) plus the summary
+    as \code{.csv}, \code{.pdat}, \code{.tsv}, or a single \code{.zip}; and
+    \emph{Export All\ldots} bundles the spectra CSV, concentrations CSV, all
+    three surfaces and the \code{.txt} summary into a folder or a single
+    \code{.zip} file (\S\ref{sec:exports}).
 \end{description}
 
 \subsection{Software updates}\label{sec:gui:updates}
@@ -205,7 +218,7 @@ the full set is present.
   \item[\code{ModelTabMixin}] Model selection, the lifetime table, bounds,
     fixed flags, IRF and time-zero controls.
   \item[\code{FittingTabMixin}] Fit control: run, preview, reset, statistic
-    read-out, copy taus, auto-plots.
+    read-out, copy taus, auto-plots, and CSV / surface / \code{.zip} exports.
   \item[\code{LDATabMixin}] The LDA controls and result display.
 \end{description}
 

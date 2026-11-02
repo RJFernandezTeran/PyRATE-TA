@@ -14,6 +14,7 @@ Window Layout
 -------------
 
 - **Left Column (Scrollable Control Panel):**
+
   - **Data:** Load, clear, and two status lamps (one for the dataset, one for per-point noise
     from a sibling ``.pdatn`` file or single-scan spread).
   - **Model Selection:** *Parallel* / *Sequential* / *Target* / *ODE-defined*.
@@ -25,17 +26,42 @@ Window Layout
     restrict-to-display-limits, and noise weighting.
   - **Fit Control:** View selector (*Data* / *Fit* / *Residuals*), *Preview*, *FIT DATA*,
     *Reset*, statistic read-out (*SSR* or *red. chi2*), *Copy taus*, *Plot DAS/EAS/SAS*,
-    *Concentrations*, *Export DAS/EAS/SAS...*, *Export Conc...*, and Steady-State Reference
-    GSB/SE de-bleaching controls (also reachable under **File → Export ...**).
+    *Concentrations*, *Export DAS/EAS/SAS...*, *Export Conc...*, *Export Surfaces...*,
+    *Export All...* (folder or single ``.zip``), and Steady-State Reference GSB/SE de-bleaching
+    controls (also reachable under **File → Export ...**).
+
 - **Plot Area (**\ :math:`3 \times 3` **Synchronised Grid):**
+
   - Top-left :math:`2 \times 2` block: 2D contour map.
   - Top-right :math:`2 \times 1` column: Rotated kinetic traces (sharing the vertical delay axis
     with the contour map).
   - Bottom-left :math:`1 \times 2` row: Transient spectra (sharing the horizontal probe axis with
     the contour map).
   - Bottom-right cell: *Additional plots and cuts* buttons for multi-cut stand-alone figures.
+
 - **Bottom Panel:** Shared PyMORGAN ``PlotControlsPanel`` (axis limits, colour scale,
   :math:`\operatorname{arcsinh}` toggle, contour levels, time-axis convention, and probe units).
+
+Exporting Fit Results from the GUI
+----------------------------------
+
+Once a fit has run (or a ``.prfit`` session is loaded via **File → Load Fit Session...**), the
+four export buttons at the bottom of **Fit Control** (mirrored under **File → Export ...**) become
+active:
+
+- **Export DAS... / Export EAS... / Export SAS...**: Writes ``<stem>_<DAS|EAS|SAS>_<timestamp>.csv``
+  plus ``<stem>_fit_summary_<timestamp>.txt`` (automatically appending side-by-side ``_abs``
+  columns whenever **Plot GSB-recovered positive spectra** is checked).
+- **Export Conc...**: Writes ``<stem>_concentrations_<timestamp>.csv`` (including the Gaussian
+  ``IRF`` column when active) plus ``<stem>_fit_summary_<timestamp>.txt``.
+- **Export Surfaces...**: Exports all three 2D surfaces (``data``, ``fit``, ``residuals``) in
+  ``.pdat`` orientation (**rows = delays**, **columns = probe**) plus the companion ``.txt``
+  summary at once — choose **CSV**, **PyMORGAN PDAT (``.pdat``)**, **TSV**, or a single **ZIP
+  Archive (``.zip``)** directly from the file-dialog format filter.
+- **Export All...**: Exports the complete bundle (DAS/EAS/SAS CSV + concentrations CSV + all three
+  2D surfaces + ``.txt`` fit summary) either into a folder or packed into a single ``.zip`` file
+  (with CSV or PDAT surfaces selectable in the dialog filter, or directly via **File → Export All
+  Fit Results (.zip)...**).
 
 The K-Matrix Editor & Scheme Graph
 ----------------------------------

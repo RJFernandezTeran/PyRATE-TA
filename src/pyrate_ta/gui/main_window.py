@@ -236,6 +236,8 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect("PlotConcProfileButton", "clicked", self._popout_concentrations)
         self._connect("ExportSpeciesButton", "clicked", lambda *_: self.export_species_spectra())
         self._connect("ExportConcButton", "clicked", lambda *_: self.export_concentrations())
+        self._connect("ExportSurfacesButton", "clicked", lambda *_: self.export_surfaces())
+        self._connect("ExportAllButton", "clicked", lambda *_: self.export_all_fit_results())
         self._connect("PlotSteadyStateCheckBox", "toggled", self._on_plot_ss_toggled)
         self._connect(
             "GSBRecoveryCheckBox",
@@ -307,7 +309,15 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
             "actionExportConcentrations", "triggered", lambda *_: self.export_concentrations()
         )
         self._connect(
+            "actionExportSurfaces", "triggered", lambda *_: self.export_surfaces()
+        )
+        self._connect(
             "actionExportFitResults", "triggered", lambda *_: self.export_all_fit_results()
+        )
+        self._connect(
+            "actionExportFitZip",
+            "triggered",
+            lambda *_: self.export_all_fit_results(as_zip=True),
         )
         self._connect("actionLoadAbsSpectrum", "triggered", self.load_abs_spectrum)
         self._connect("actionLoadEmSpectrum", "triggered", self.load_em_spectrum)

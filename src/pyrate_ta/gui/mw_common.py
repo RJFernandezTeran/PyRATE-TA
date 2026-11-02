@@ -92,9 +92,13 @@ _FIT_ONLY_WIDGETS = [
     "PlotConcProfileButton",
     "ExportSpeciesButton",
     "ExportConcButton",
+    "ExportSurfacesButton",
+    "ExportAllButton",
     "actionExportSpectra",
     "actionExportConcentrations",
+    "actionExportSurfaces",
     "actionExportFitResults",
+    "actionExportFitZip",
 ]
 
 # Enabled only once there is an LDA result: they plot or export the solved map.
@@ -135,14 +139,29 @@ _TOOLTIPS = {
     "ExportConcButton": (
         "Export fitted concentration profiles C(t) to CSV and write a companion .txt fit summary"
     ),
+    "ExportSurfacesButton": (
+        "Export Data, Fit, and Residual 2D surfaces (CSV, TSV, or PDAT) plus companion .txt summary"
+    ),
+    "ExportAllButton": (
+        "Export DAS/EAS/SAS, concentrations, Data/Fit/Residual surfaces, and .txt summary "
+        "into a folder or a single .zip file"
+    ),
     "actionExportSpectra": (
         "Export fitted DAS/EAS/SAS spectra to CSV and write a companion .txt fit summary"
     ),
     "actionExportConcentrations": (
         "Export fitted concentration profiles C(t) to CSV and write a companion .txt fit summary"
     ),
+    "actionExportSurfaces": (
+        "Export Data, Fit, and Residual 2D surfaces (CSV, TSV, or PDAT) plus companion .txt summary"
+    ),
     "actionExportFitResults": (
-        "Export DAS/EAS/SAS spectra CSV, concentration profiles CSV, and .txt fit summary together"
+        "Export DAS/EAS/SAS, concentrations, Data/Fit/Residual surfaces, and .txt summary "
+        "into a folder or single .zip file"
+    ),
+    "actionExportFitZip": (
+        "Save DAS/EAS/SAS, concentrations, Data/Fit/Residual surfaces, and .txt summary "
+        "into a single .zip archive"
     ),
     "LoadPDATButton": "Load a 1-D transient dataset (PyMORGAN loader registry)",
     "ClearDataButton": "Unload the dataset and clear every plot",
@@ -405,6 +424,8 @@ _BUTTON_PALETTES: dict[str, str] = {
     "PlotConcProfileButton": "neutral",
     "ExportSpeciesButton": "neutral",
     "ExportConcButton": "neutral",
+    "ExportSurfacesButton": "neutral",
+    "ExportAllButton": "neutral",
     "CopyTaus_button": "neutral",
     "AddComponentButton": "add",
     "RemoveComponentButton": "remove",

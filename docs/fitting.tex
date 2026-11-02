@@ -130,7 +130,7 @@ Simple non-negative least squares uses \code{scipy.optimise.nnls}; a mixed
 mask uses \code{scipy.optimise.lsq\_linear}. The constrained solver is in
 \code{pyrate_ta.fit.constrained}.
 
-\subsection{Ground-state bleach and absolute species spectra}\label{sec:groundstate}
+\subsection{Ground-state bleach and absolute species spectra}\label{sec:groundstate-overview}
 
 Transient absorption and vibrational data are difference spectra:
 $\mathbf{S}_\text{diff} = \mathbf{S}_\text{excited} - f\,\mathbf{GS}$.
@@ -324,7 +324,9 @@ Three result classes share the common fields of \code{KineticFit}:
 Every result exposes \code{as\_species\_args()} (the adapter for PyMORGAN's
 \code{plot\_species\_spectra}), \code{spectra\_kind} (DAS / EAS / SAS),
 \code{artefact\_spectra} (the coherent-artefact columns, if any),
-\code{summary()} and \code{log\_summary()}.
+\code{summary()}, \code{log_summary()}, \code{fitted_surface},
+\code{data_surface}, and the tabular/surface export methods
+(\S\ref{sec:exports}).
 
 \subsubsection{LDA result}\label{sec:results-lda}
 
@@ -377,6 +379,50 @@ print(prev.taus)                         # numpy arrays as attributes
 The format version is embedded in every file and checked on load: a file
 written by a newer PyRATE-TA that the current build cannot interpret raises rather
 than silently mis-reading it.
+
+\subsection{Tabular, 2D surface and archive exports}\label{sec:exports}
+
+For downstream plotting and archiving outside Python, \code{pyrate_ta.io.export}
+(and the matching methods on every \code{KineticFit} and reopened
+\code{LoadedFit}) exports spectra, concentration profiles, 2D surfaces and a
+companion plain-text fit report sharing the same \code{YYYYMMDD-HHMMSS}
+timestamp:
+
+\begin{description}
+  \item[\code{export_spectra}] Writes \code{<stem>_<DAS|EAS|SAS>_<ts>.csv}
+    with a single uncommented header row (zero \texttt{\#} lines by default, so
+    OriginPro, Excel, Igor~Pro, \code{pandas.read_csv} and
+    \code{numpy.loadtxt(..., skiprows=1)} import it directly). When GSB/SE
+    de-bleaching (\code{recover_gsb=True}) is active, positive \code{_abs}
+    columns are appended side-by-side in the same CSV.
+  \item[\code{export_concentrations}] Writes \code{<stem>_concentrations_<ts>.csv}
+    containing \code{Delay (<unit>)}, each kinetic population $C_i(t)$, and
+    (when active) the Gaussian \code{IRF} envelope.
+  \item[\code{export_surface} / \code{export_surfaces}] Exports one or all
+    three 2D surfaces (\code{data}, \code{fit}, \code{residuals}) strictly in
+    PyMORGAN's \code{.pdat} orientation (\textbf{rows = delays} $N_d$,
+    \textbf{columns = probe} $N_p$; never transposed). Supports \code{.csv},
+    \code{.tsv}, and native \code{.pdat} (via \code{pymorgan.write_pdat},
+    loading straight back into \code{pymorgan.load_1D}). All three surfaces
+    share the exact fitted $(t,\,\text{probe})$ window so
+    $\text{data} - \text{fit} = \text{residuals}$ holds identically even when
+    reconstructed from a \code{.prfit} session without the raw file.
+  \item[\code{export_fit_summary} / \code{export_fit_results}] Writes the
+    human-readable \code{<stem>_fit_summary_<ts>.txt} report (convergence,
+    lifetimes and $1\sigma$ uncertainties, target \Kmat{} matrix and
+    eigenvalues, $\chi^2_\nu$ or SSR, GSB/SE scale factors, and academic
+    citations) or exports the complete 6-file bundle into a folder or a single
+    deflate-compressed \code{.zip} archive (\code{as_zip=True} or a
+    \code{.zip} destination path).
+\end{description}
+
+\begin{lstlisting}
+# Export complete folder bundle (EAS/DAS/SAS + C(t) + 3 surfaces + .txt report)
+paths = fit.export_results("exports/", dataset=data, recover_gsb=True)
+
+# Or pack everything (with native PyMORGAN .pdat surfaces) into a single .zip
+bundle = fit.export_results("scan_bundle.zip", dataset=data, surface_format="pdat")
+\end{lstlisting}
 
 \subsection{Steady-state spectra and pure positive species recovery (GSB and SE)}\label{sec:groundstate}
 

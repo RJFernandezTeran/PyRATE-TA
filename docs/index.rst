@@ -39,7 +39,7 @@ Analysis (LDA), and constrained pure positive species spectrum recovery (GSB / S
 
       Variable projection, coherent-artefact bases, sign-constrained amplitudes, GSB/SE
       de-bleaching, Tikhonov Lifetime Density Analysis (L-curve / GCV / Morozov), and
-      ``.prfit`` session archives.
+      ``.prfit`` session archives, and CSV / 2D surface / ``.zip`` exports.
 
    .. grid-item-card:: 🖥️ Graphical Interface & Settings
       :link: user_guide/gui_and_settings
@@ -90,6 +90,10 @@ Quick Example
 
    # 4. Save reproducible fit session (.prfit)
    pr.save_fit("scan_sequential_fit", fit)
+
+   # 5. Export EAS, C(t), 2D surfaces & summary report (folder or .zip)
+   fit.export_results("exports/", dataset=data)
+   fit.export_results("scan_bundle.zip", dataset=data, surface_format="pdat")
 
 
 Contents

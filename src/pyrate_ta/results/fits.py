@@ -279,6 +279,7 @@ class KineticFit:
         dataset: Any = None,
         recover_gsb: bool = False,
         S_abs: Any = None,
+        bleach_result: Any = None,
         gs_spectrum: Any = None,
         em_spectrum: Any = None,
         include_artifact: bool = False,
@@ -297,6 +298,7 @@ class KineticFit:
             dataset=dataset,
             recover_gsb=recover_gsb,
             S_abs=S_abs,
+            bleach_result=bleach_result,
             gs_spectrum=gs_spectrum,
             em_spectrum=em_spectrum,
             include_artifact=include_artifact,
@@ -338,6 +340,90 @@ class KineticFit:
             fmt=fmt,
         )
 
+    @property
+    def fitted_surface(self) -> np.ndarray:
+        """Reconstructed 2D fitted surface ``C @ S.T`` of shape ``(Nd, Np)``."""
+        from ..io.export import compute_surface_matrix
+
+        return compute_surface_matrix(self, "fit")[1]
+
+    @property
+    def data_surface(self) -> np.ndarray:
+        """Fitted-window 2D data surface ``C @ S.T + R`` of shape ``(Nd, Np)``."""
+        from ..io.export import compute_surface_matrix
+
+        return compute_surface_matrix(self, "data")[1]
+
+    def export_surface(
+        self,
+        path=None,
+        *,
+        kind: str = "fit",
+        dataset: Any = None,
+        surface_format: str = "csv",
+        include_artifact: bool = True,
+        weighted_residuals: bool = False,
+        metadata: bool = False,
+        timestamp: str | None = None,
+        write_summary: bool = False,
+        directory=None,
+        fmt: str = "%.12g",
+    ):
+        """Export one 2D surface (``data``, ``fit``, or ``residuals``) as CSV/TSV or PDAT."""
+        from ..io.export import export_surface
+
+        return export_surface(
+            self,
+            path,
+            kind=kind,
+            dataset=dataset,
+            surface_format=surface_format,
+            include_artifact=include_artifact,
+            weighted_residuals=weighted_residuals,
+            metadata=metadata,
+            timestamp=timestamp,
+            write_summary=write_summary,
+            directory=directory,
+            fmt=fmt,
+        )
+
+    def export_surfaces(
+        self,
+        directory=None,
+        *,
+        dataset: Any = None,
+        surface_format: str = "csv",
+        as_zip: bool = False,
+        zip_path=None,
+        keep_files: bool = False,
+        stem_override: str | None = None,
+        include_artifact: bool = True,
+        weighted_residuals: bool = False,
+        metadata: bool = False,
+        timestamp: str | None = None,
+        bleach_result: Any = None,
+        fmt: str = "%.12g",
+    ):
+        """Export all 3 surfaces (``data``, ``fit``, ``residuals``) + ``.txt`` summary."""
+        from ..io.export import export_surfaces
+
+        return export_surfaces(
+            self,
+            directory,
+            dataset=dataset,
+            surface_format=surface_format,
+            as_zip=as_zip,
+            zip_path=zip_path,
+            keep_files=keep_files,
+            stem_override=stem_override,
+            include_artifact=include_artifact,
+            weighted_residuals=weighted_residuals,
+            metadata=metadata,
+            timestamp=timestamp,
+            bleach_result=bleach_result,
+            fmt=fmt,
+        )
+
     def export_summary(
         self,
         path=None,
@@ -366,16 +452,25 @@ class KineticFit:
         dataset: Any = None,
         recover_gsb: bool = False,
         S_abs: Any = None,
+        bleach_result: Any = None,
         gs_spectrum: Any = None,
         em_spectrum: Any = None,
         normalise_concentrations: bool = False,
         include_irf: bool = True,
         include_artifact: bool = False,
+        include_surfaces: bool = True,
+        surface_format: str = "csv",
+        include_artifact_in_surfaces: bool = True,
+        weighted_residuals: bool = False,
+        as_zip: bool = False,
+        zip_path=None,
+        keep_files: bool = False,
+        stem_override: str | None = None,
         metadata: bool = False,
         timestamp: str | None = None,
         fmt: str = "%.12g",
     ):
-        """Export spectra CSV, concentrations CSV, and summary TXT with one timestamp."""
+        """Export spectra, concentrations, 2D surfaces, and summary TXT (or single ``.zip``)."""
         from ..io.export import export_fit_results
 
         return export_fit_results(
@@ -384,11 +479,20 @@ class KineticFit:
             dataset=dataset,
             recover_gsb=recover_gsb,
             S_abs=S_abs,
+            bleach_result=bleach_result,
             gs_spectrum=gs_spectrum,
             em_spectrum=em_spectrum,
             normalise_concentrations=normalise_concentrations,
             include_irf=include_irf,
             include_artifact=include_artifact,
+            include_surfaces=include_surfaces,
+            surface_format=surface_format,
+            include_artifact_in_surfaces=include_artifact_in_surfaces,
+            weighted_residuals=weighted_residuals,
+            as_zip=as_zip,
+            zip_path=zip_path,
+            keep_files=keep_files,
+            stem_override=stem_override,
             metadata=metadata,
             timestamp=timestamp,
             fmt=fmt,

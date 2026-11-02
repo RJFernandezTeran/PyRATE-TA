@@ -147,10 +147,12 @@ regularisation (:mod:`pyrate_ta.fit.lda`):
   difference (``d1``, :math:`\mathbf{L} = \mathbf{D}_1`, penalising slope), and second difference
   (``d2``, :math:`\mathbf{L} = \mathbf{D}_2`, penalising curvature; default).
 - **Automatic** :math:`\alpha` **selection (``alpha="auto"``):**
+
   - ``lcurve``: Corner of the log-residual vs. log-solution-norm curve via maximum Menger
     curvature (Hansen, 1992; default).
   - ``gcv``: Generalised Cross-Validation (Golub *et al.*, 1979).
   - ``morozov``: Morozov discrepancy principle matching the pre-time-zero noise level.
+
 - **Additional options:** ``non_negative`` (per-pixel NNLS), ``svd_components`` (top-:math:`K`
   SVD pre-filtering), ``n_bootstraps`` (Monte Carlo residual resampling), ``find_peaks``
   (automatic peak centroid detection on :math:`A(\tau) = \sum_p |S_{p,i}|`), and
@@ -183,14 +185,48 @@ Weighting, Reduced :math:`\chi^2`, Uncertainties & Session Files (``.prfit``)
      print(prev.taus)
 
 
-- **Tabular CSV & Companion Summary Exports:** :func:`pyrate_ta.export_spectra`,
-  :func:`pyrate_ta.export_concentrations`, :func:`pyrate_ta.export_fit_summary`, and
-  :func:`pyrate_ta.export_fit_results` (also available directly on ``fit`` and ``LoadedFit``)
-  write single-header CSV files with zero ``#`` comment lines so they open directly in Excel,
-  OriginPro, ``pandas.read_csv``, and ``numpy.loadtxt(..., skiprows=1)``, paired with a
-  human-readable ``.txt`` fit report sharing the same ``YYYYMMDD-HHMMSS`` timestamp:
+Tabular CSV, 2D Surface & ``.zip`` Bundle Exports
+-------------------------------------------------
 
-  .. code-block:: python
+Every fit result (:class:`~pyrate_ta.results.fits.KineticFit`,
+:class:`~pyrate_ta.results.fits.GlobalFit`, :class:`~pyrate_ta.results.fits.TargetFit`) and
+reopened session (:class:`~pyrate_ta.io.session.LoadedFit`) provides direct export methods backed
+by :mod:`pyrate_ta.io.export`:
 
-     paths = fit.export_results("exports/", dataset=data, recover_gsb=True)
-     print(paths.spectra, paths.concentrations, paths.summary)
+- **Single-header CSV/TSV tables (zero** ``#`` **lines by default):** Line 1 is the column header
+  and lines 2+ are numeric values, opening directly in OriginPro, Excel, Igor Pro,
+  ``pandas.read_csv(path)``, and ``numpy.loadtxt(path, delimiter=",", skiprows=1)``.
+- **DAS / EAS / SAS spectra** (:func:`~pyrate_ta.io.export.export_spectra`): Exports the fitted
+  probe axis alongside ``DAS_S1 (...)``, ``EAS_S1 (...)``, or ``SAS_A`` columns. When GSB/SE
+  recovery is enabled (``recover_gsb=True``), de-bleached ``_abs`` columns are appended
+  side-by-side in the same CSV.
+- **Concentration profiles** :math:`C(t)` (:func:`~pyrate_ta.io.export.export_concentrations`):
+  Exports ``Delay (<unit>)``, each kinetic population column, and (by default when present) the
+  Gaussian ``IRF`` envelope.
+- **2D Data, Fit & Residual surfaces** (:func:`~pyrate_ta.io.export.export_surface`,
+  :func:`~pyrate_ta.io.export.export_surfaces`): Strictly follows the PyMORGAN ``.pdat``
+  orientation (**rows = delays** :math:`N_d`, **columns = probe** :math:`N_p`; never transposed).
+  Supports ``.csv``, ``.tsv``, and native ``.pdat`` (via :func:`pymorgan.write_pdat`, which loads
+  straight back into ``pymorgan.load_1D``). All three surfaces share the exact fitted
+  :math:`(t, \text{probe})` window so ``data - fit == residuals`` holds identically even when
+  reconstructed from a standalone ``.prfit`` file.
+- **Unified timestamp, companion** ``.txt`` **report &** ``.zip`` **archiving**
+  (:func:`~pyrate_ta.io.export.export_fit_summary`,
+  :func:`~pyrate_ta.io.export.export_fit_results`): Every file in an export shares the fit's
+  ``YYYYMMDD-HHMMSS`` timestamp, paired with ``<stem>_fit_summary_<timestamp>.txt`` (convergence,
+  lifetimes & :math:`1\sigma` errors, target :math:`\mathbf{K}` matrix & eigenvalues,
+  :math:`\chi^2_\nu` / SSR, GSB/SE scale factors, and citations). Pass ``as_zip=True`` or a
+  ``.zip`` destination path to pack all files into a single archive:
+
+.. code-block:: python
+
+   # Export individual CSVs or PDAT surfaces
+   fit.export_spectra("scan_EAS.csv", dataset=data, recover_gsb=True)
+   fit.export_concentrations("scan_C.csv", dataset=data)
+   fit.export_surface("scan_fit.pdat", kind="fit", dataset=data)
+
+   # Export complete folder bundle (EAS/DAS/SAS + C(t) + data/fit/residuals + summary.txt)
+   paths = fit.export_results("exports/", dataset=data, recover_gsb=True)
+
+   # Or pack everything (with PDAT surfaces) into a single .zip file
+   bundle = fit.export_results("exports/scan_bundle.zip", dataset=data, surface_format="pdat")
