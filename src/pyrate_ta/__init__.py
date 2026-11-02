@@ -77,10 +77,17 @@ _EXPORTS: dict[str, str] = {
     "plot_parameter_history": ".plot",
     "overlay_styles": ".plot",
 
-    # sessions
+    # sessions & tabular exports
     "save_fit": ".io",
     "load_fit": ".io",
     "LoadedFit": ".io",
+    "ExportedFitPaths": ".io",
+    "export_spectra": ".io",
+    "export_concentrations": ".io",
+    "export_fit_summary": ".io",
+    "export_fit_results": ".io",
+    "format_fit_report": ".io",
+    "make_timestamp": ".io",
     # results
     "KineticFit": ".results",
     "GlobalFit": ".results",
@@ -144,7 +151,18 @@ if TYPE_CHECKING:  # keeps type checkers and IDE completion fully informed
         solve_amplitudes,
     )
     from .helpers import format_lifetime, parse_lifetime
-    from .io import LoadedFit, load_fit, save_fit
+    from .io import (
+        ExportedFitPaths,
+        LoadedFit,
+        export_concentrations,
+        export_fit_results,
+        export_fit_summary,
+        export_spectra,
+        format_fit_report,
+        load_fit,
+        make_timestamp,
+        save_fit,
+    )
     from .models import (
         TARGET_SCHEMES,
         KineticModel,
@@ -252,10 +270,17 @@ __all__ = [
     "plot_parameter_bars",
     "plot_parameter_history",
     "overlay_styles",
-    # sessions
+    # sessions & tabular exports
     "save_fit",
     "load_fit",
     "LoadedFit",
+    "ExportedFitPaths",
+    "export_spectra",
+    "export_concentrations",
+    "export_fit_summary",
+    "export_fit_results",
+    "format_fit_report",
+    "make_timestamp",
     # results
     "KineticFit",
     "GlobalFit",

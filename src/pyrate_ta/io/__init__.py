@@ -1,4 +1,4 @@
-"""Import/export of fit sessions.
+"""Import/export of fit sessions and tabular fit results.
 
 **Not spectroscopy file formats.** Raw data readers (``PDAT``, ``P2DAT``, MESS
 directories, ...) belong to PyMORGAN's loader registry; load through
@@ -6,15 +6,24 @@ directories, ...) belong to PyMORGAN's loader registry; load through
 contributed upstream, or registered at runtime with
 ``pymorgan.register_loader`` -- never forked into this package.
 
-What lives here is the analysis session: the model, its parameters, the
-fixed/free masks, the ranges used and the results, written so a fit can be
-reopened. The format is PyRATE-TA's own ``.prfit`` -- a compressed ``.npz``
+What lives here is the analysis session (``.prfit`` -- a compressed ``.npz``
 carrying both the arrays and a JSON reproducibility payload, so the numbers can
-never be separated from the record of how they were produced.
+never be separated from the record of how they were produced) together with
+clean single-header CSV exports of DAS/EAS/SAS spectra, concentration profiles
+``C(t)``, and companion human-readable ``.txt`` fit summary reports.
 """
 
 from __future__ import annotations
 
+from .export import (
+    ExportedFitPaths,
+    export_concentrations,
+    export_fit_results,
+    export_fit_summary,
+    export_spectra,
+    format_fit_report,
+    make_timestamp,
+)
 from .session import (
     FORMAT_VERSION,
     LoadedFit,
@@ -29,4 +38,11 @@ __all__ = [
     "LoadedFit",
     "default_session_path",
     "FORMAT_VERSION",
+    "ExportedFitPaths",
+    "export_spectra",
+    "export_concentrations",
+    "export_fit_summary",
+    "export_fit_results",
+    "format_fit_report",
+    "make_timestamp",
 ]

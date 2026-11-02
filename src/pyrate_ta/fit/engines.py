@@ -163,7 +163,13 @@ def _finalise(
         source=problem.source,
         sorted_by_lifetime=permutation is not None,
         permutation=permutation,
-        settings={"noise_source": problem.noise_source, "time_unit": problem.time_unit},
+        settings={
+            "noise_source": problem.noise_source,
+            "time_unit": problem.time_unit,
+            "probe_unit": problem.probe_unit,
+            "probe_label": problem.probe_label,
+            "signal_unit": problem.signal_unit,
+        },
         **res_extra,
     )
     result.log_summary()
@@ -419,6 +425,9 @@ def preview_global(
         settings={
             "noise_source": problem.noise_source,
             "time_unit": problem.time_unit,
+            "probe_unit": problem.probe_unit,
+            "probe_label": problem.probe_label,
+            "signal_unit": problem.signal_unit,
             "preview": True,
         },
     )

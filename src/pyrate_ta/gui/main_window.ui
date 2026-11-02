@@ -612,16 +612,6 @@
                  </property>
                 </widget>
                </item>
-               <item row="5" column="0" colspan="4">
-                <widget class="QCheckBox" name="PlotSteadyStateCheckBox">
-                 <property name="toolTip">
-                  <string>Overlay steady-state absorption and emission spectra as shaded areas on species spectra (EAS/DAS/SAS)</string>
-                 </property>
-                 <property name="text">
-                  <string>Plot steady-state spectra</string>
-                 </property>
-                </widget>
-               </item>
                <item row="4" column="2" colspan="2">
                 <widget class="QPushButton" name="PlotConcProfileButton">
                  <property name="toolTip">
@@ -629,6 +619,36 @@
                  </property>
                  <property name="text">
                   <string>Concentrations</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="5" column="0" colspan="2">
+                <widget class="QPushButton" name="ExportSpeciesButton">
+                 <property name="toolTip">
+                  <string>Export fitted species spectra (DAS/EAS/SAS) to CSV and companion .txt summary</string>
+                 </property>
+                 <property name="text">
+                  <string>Export spectra...</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="5" column="2" colspan="2">
+                <widget class="QPushButton" name="ExportConcButton">
+                 <property name="toolTip">
+                  <string>Export fitted concentration profiles C(t) to CSV and companion .txt summary</string>
+                 </property>
+                 <property name="text">
+                  <string>Export Conc...</string>
+                 </property>
+                </widget>
+               </item>
+               <item row="6" column="0" colspan="4">
+                <widget class="QCheckBox" name="PlotSteadyStateCheckBox">
+                 <property name="toolTip">
+                  <string>Overlay steady-state absorption and emission spectra as shaded areas on species spectra (EAS/DAS/SAS)</string>
+                 </property>
+                 <property name="text">
+                  <string>Plot steady-state spectra</string>
                  </property>
                 </widget>
                </item>
@@ -2194,6 +2214,10 @@
     <addaction name="actionSaveFit"/>
     <addaction name="actionLoadFit"/>
     <addaction name="separator"/>
+    <addaction name="actionExportSpectra"/>
+    <addaction name="actionExportConcentrations"/>
+    <addaction name="actionExportFitResults"/>
+    <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuView">
@@ -2236,6 +2260,39 @@
   <action name="actionLoadFit">
    <property name="text">
     <string>&amp;Open fit session...</string>
+   </property>
+  </action>
+  <action name="actionExportSpectra">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>&amp;Export species spectra (CSV)...</string>
+   </property>
+   <property name="toolTip">
+    <string>Export fitted DAS/EAS/SAS spectra to CSV (with companion .txt fit summary)</string>
+   </property>
+  </action>
+  <action name="actionExportConcentrations">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Export &amp;concentration profiles (CSV)...</string>
+   </property>
+   <property name="toolTip">
+    <string>Export fitted concentration profiles C(t) to CSV (with companion .txt fit summary)</string>
+   </property>
+  </action>
+  <action name="actionExportFitResults">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Export &amp;all fit results (CSV + TXT)...</string>
+   </property>
+   <property name="toolTip">
+    <string>Export species spectra CSV, concentration profiles CSV, and fit summary TXT into a folder</string>
    </property>
   </action>
   <action name="actionLoadAbsSpectrum">

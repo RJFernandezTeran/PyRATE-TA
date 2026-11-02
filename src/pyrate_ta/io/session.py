@@ -36,7 +36,19 @@ logger = get_logger(__name__)
 FORMAT_VERSION = 1
 
 _SUFFIX = ".prfit"
-_ARRAY_FIELDS = ("taus", "tau_err", "is_fixed", "S", "C", "R", "t", "probe", "covariance", "K")
+_ARRAY_FIELDS = (
+    "taus",
+    "tau_err",
+    "is_fixed",
+    "S",
+    "S_abs",
+    "C",
+    "R",
+    "t",
+    "probe",
+    "covariance",
+    "K",
+)
 
 
 def _jsonable(value):
@@ -81,10 +93,14 @@ def _metadata(fit) -> dict:
         "t_min": fit.t_min,
         "detector": int(fit.detector),
         "source": fit.source,
+        "timestamp": getattr(fit, "timestamp", None),
         "sorted_by_lifetime": bool(fit.sorted_by_lifetime),
         "settings": dict(fit.settings or {}),
         "initial_params": fit.initial_params,
         "bounds": fit.bounds,
+        "gs_scale": getattr(fit, "gs_scale", None),
+        "gs_source": getattr(fit, "gs_source", None),
+        "a_max": getattr(fit, "a_max", None),
         # A target fit reopens as editable text, not as an opaque matrix.
         "scheme_key": getattr(fit, "scheme_key", None),
         "scheme_label": getattr(fit, "scheme_label", None),
@@ -187,6 +203,27 @@ class LoadedFit:
     def converged(self) -> bool:
         return bool(self.meta.get("report", {}).get("converged", False))
 
+    @property
+    def spectra_kind(self) -> str:
+        """What this reopened fit's amplitude spectra are called: DAS, EAS or SAS."""
+        return {"Parallel": "DAS", "Sequential": "EAS", "Target": "SAS"}.get(
+            str(self.meta.get("model_type", "")), "spectra"
+        )
+
+    @property
+    def n_kinetic(self) -> int:
+        """Columns of ``C``/``S`` that are kinetic components, artefact aside."""
+        S = getattr(self, "S", None)
+        taus = getattr(self, "taus", [])
+        total = int(np.shape(S)[1]) if S is not None else len(taus)
+        return max(total - int(self.meta.get("n_artifact", 0) or 0), 0)
+
+    def species_labels(self) -> list[str]:
+        """Names of the species/compartments for DAS/EAS/SAS plots and exports."""
+        from ..plot.concentrations import species_labels_for
+
+        return species_labels_for(self)
+
     def summary(self) -> str:
         """The same shape of summary a live result prints."""
         from ..helpers import format_lifetime
@@ -213,6 +250,145 @@ class LoadedFit:
         if statistic:
             lines.append(f"  {statistic['kind']} = {statistic['value']:.5g}")
         return "\n".join(lines)
+
+    # ------------------------------------------------------------------ #
+    #                             Exporting                              #
+    # ------------------------------------------------------------------ #
+    def format_report(
+        self,
+        *,
+        dataset=None,
+        timestamp: str | None = None,
+        bleach_result=None,
+    ) -> str:
+        """Format a detailed terminal-style fit report string."""
+        from .export import format_fit_report
+
+        return format_fit_report(
+            self, dataset=dataset, timestamp=timestamp, bleach_result=bleach_result
+        )
+
+    def export_spectra(
+        self,
+        path=None,
+        *,
+        dataset=None,
+        recover_gsb: bool = False,
+        S_abs=None,
+        gs_spectrum=None,
+        em_spectrum=None,
+        include_artifact: bool = False,
+        metadata: bool = False,
+        timestamp: str | None = None,
+        write_summary: bool = False,
+        directory=None,
+        fmt: str = "%.12g",
+    ) -> Path:
+        """Export DAS/EAS/SAS spectra to a single-header CSV file."""
+        from .export import export_spectra
+
+        return export_spectra(
+            self,
+            path,
+            dataset=dataset,
+            recover_gsb=recover_gsb,
+            S_abs=S_abs,
+            gs_spectrum=gs_spectrum,
+            em_spectrum=em_spectrum,
+            include_artifact=include_artifact,
+            metadata=metadata,
+            timestamp=timestamp,
+            write_summary=write_summary,
+            directory=directory,
+            fmt=fmt,
+        )
+
+    def export_concentrations(
+        self,
+        path=None,
+        *,
+        dataset=None,
+        normalise: bool = False,
+        include_irf: bool = True,
+        include_artifact: bool = False,
+        metadata: bool = False,
+        timestamp: str | None = None,
+        write_summary: bool = False,
+        directory=None,
+        fmt: str = "%.12g",
+    ) -> Path:
+        """Export concentration profiles ``C(t)`` to a single-header CSV file."""
+        from .export import export_concentrations
+
+        return export_concentrations(
+            self,
+            path,
+            dataset=dataset,
+            normalise=normalise,
+            include_irf=include_irf,
+            include_artifact=include_artifact,
+            metadata=metadata,
+            timestamp=timestamp,
+            write_summary=write_summary,
+            directory=directory,
+            fmt=fmt,
+        )
+
+    def export_summary(
+        self,
+        path=None,
+        *,
+        dataset=None,
+        timestamp: str | None = None,
+        bleach_result=None,
+        directory=None,
+    ) -> Path:
+        """Export the companion human-readable ``.txt`` fit report."""
+        from .export import export_fit_summary
+
+        return export_fit_summary(
+            self,
+            path,
+            dataset=dataset,
+            timestamp=timestamp,
+            bleach_result=bleach_result,
+            directory=directory,
+        )
+
+    def export_results(
+        self,
+        directory=None,
+        *,
+        dataset=None,
+        recover_gsb: bool = False,
+        S_abs=None,
+        gs_spectrum=None,
+        em_spectrum=None,
+        normalise_concentrations: bool = False,
+        include_irf: bool = True,
+        include_artifact: bool = False,
+        metadata: bool = False,
+        timestamp: str | None = None,
+        fmt: str = "%.12g",
+    ):
+        """Export spectra CSV, concentrations CSV, and summary TXT with one timestamp."""
+        from .export import export_fit_results
+
+        return export_fit_results(
+            self,
+            directory,
+            dataset=dataset,
+            recover_gsb=recover_gsb,
+            S_abs=S_abs,
+            gs_spectrum=gs_spectrum,
+            em_spectrum=em_spectrum,
+            normalise_concentrations=normalise_concentrations,
+            include_irf=include_irf,
+            include_artifact=include_artifact,
+            metadata=metadata,
+            timestamp=timestamp,
+            fmt=fmt,
+        )
 
 
 def load_fit(path) -> LoadedFit:

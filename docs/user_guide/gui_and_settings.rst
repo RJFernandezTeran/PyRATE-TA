@@ -25,7 +25,8 @@ Window Layout
     restrict-to-display-limits, and noise weighting.
   - **Fit Control:** View selector (*Data* / *Fit* / *Residuals*), *Preview*, *FIT DATA*,
     *Reset*, statistic read-out (*SSR* or *red. chi2*), *Copy taus*, *Plot DAS/EAS/SAS*,
-    *Plot Conc. Profile*, and Steady-State Reference GSB/SE de-bleaching controls.
+    *Concentrations*, *Export DAS/EAS/SAS...*, *Export Conc...*, and Steady-State Reference
+    GSB/SE de-bleaching controls (also reachable under **File → Export ...**).
 - **Plot Area (**\ :math:`3 \times 3` **Synchronised Grid):**
   - Top-left :math:`2 \times 2` block: 2D contour map.
   - Top-right :math:`2 \times 1` column: Rotated kinetic traces (sharing the vertical delay axis

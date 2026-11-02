@@ -28,8 +28,12 @@ Plotters (``pyrate_ta.plot``)
    :members:
    :show-inheritance:
 
-Session & Reference I/O (``pyrate_ta.io``)
-------------------------------------------
+Session, Tabular Export & Reference I/O (``pyrate_ta.io``)
+----------------------------------------------------------
+
+.. automodule:: pyrate_ta.io.export
+   :members:
+   :show-inheritance:
 
 .. automodule:: pyrate_ta.io.session
    :members:

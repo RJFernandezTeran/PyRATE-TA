@@ -181,3 +181,16 @@ Weighting, Reduced :math:`\chi^2`, Uncertainties & Session Files (``.prfit``)
      prev = pr.load_fit("scan_fit.prfit")
      print(prev.summary())
      print(prev.taus)
+
+
+- **Tabular CSV & Companion Summary Exports:** :func:`pyrate_ta.export_spectra`,
+  :func:`pyrate_ta.export_concentrations`, :func:`pyrate_ta.export_fit_summary`, and
+  :func:`pyrate_ta.export_fit_results` (also available directly on ``fit`` and ``LoadedFit``)
+  write single-header CSV files with zero ``#`` comment lines so they open directly in Excel,
+  OriginPro, ``pandas.read_csv``, and ``numpy.loadtxt(..., skiprows=1)``, paired with a
+  human-readable ``.txt`` fit report sharing the same ``YYYYMMDD-HHMMSS`` timestamp:
+
+  .. code-block:: python
+
+     paths = fit.export_results("exports/", dataset=data, recover_gsb=True)
+     print(paths.spectra, paths.concentrations, paths.summary)

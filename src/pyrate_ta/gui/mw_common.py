@@ -90,6 +90,11 @@ _FIT_ONLY_WIDGETS = [
     "ResetFitButton",
     "PlotSpeciesSpectraButton",
     "PlotConcProfileButton",
+    "ExportSpeciesButton",
+    "ExportConcButton",
+    "actionExportSpectra",
+    "actionExportConcentrations",
+    "actionExportFitResults",
 ]
 
 # Enabled only once there is an LDA result: they plot or export the solved map.
@@ -123,6 +128,22 @@ _TOOLTIPS = {
     "ShowSchemeButton": "Draw the kinetic scheme of the current model, with the rate symbols",
     "PlotSpeciesSpectraButton": "Open the fitted species spectra in their own window",
     "PlotConcProfileButton": "Open the concentration profiles C(t) of the fitted model",
+    "ExportSpeciesButton": (
+        "Export fitted DAS/EAS/SAS spectra to CSV (includes pure-positive _abs columns when "
+        "GSB/SE recovery is ticked) and write a companion .txt fit summary"
+    ),
+    "ExportConcButton": (
+        "Export fitted concentration profiles C(t) to CSV and write a companion .txt fit summary"
+    ),
+    "actionExportSpectra": (
+        "Export fitted DAS/EAS/SAS spectra to CSV and write a companion .txt fit summary"
+    ),
+    "actionExportConcentrations": (
+        "Export fitted concentration profiles C(t) to CSV and write a companion .txt fit summary"
+    ),
+    "actionExportFitResults": (
+        "Export DAS/EAS/SAS spectra CSV, concentration profiles CSV, and .txt fit summary together"
+    ),
     "LoadPDATButton": "Load a 1-D transient dataset (PyMORGAN loader registry)",
     "ClearDataButton": "Unload the dataset and clear every plot",
     "AddComponentButton": "Add a kinetic component to the model",
@@ -379,9 +400,11 @@ _BUTTON_PALETTES: dict[str, str] = {
     "ShowDataButton": "fit",
     "ShowFitButton": "fit",
     "ShowResidualsButton": "fit",
-    # Secondary post-fit figures in the left column stay calm neutral slate.
+    # Secondary post-fit figures and exports in the left column stay calm neutral slate.
     "PlotSpeciesSpectraButton": "neutral",
     "PlotConcProfileButton": "neutral",
+    "ExportSpeciesButton": "neutral",
+    "ExportConcButton": "neutral",
     "CopyTaus_button": "neutral",
     "AddComponentButton": "add",
     "RemoveComponentButton": "remove",

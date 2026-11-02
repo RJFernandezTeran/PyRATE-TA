@@ -234,6 +234,8 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect("ShowSchemeButton", "clicked", self._popout_scheme)
         self._connect("PlotSpeciesSpectraButton", "clicked", self._popout_species_spectra)
         self._connect("PlotConcProfileButton", "clicked", self._popout_concentrations)
+        self._connect("ExportSpeciesButton", "clicked", lambda *_: self.export_species_spectra())
+        self._connect("ExportConcButton", "clicked", lambda *_: self.export_concentrations())
         self._connect("PlotSteadyStateCheckBox", "toggled", self._on_plot_ss_toggled)
         self._connect(
             "GSBRecoveryCheckBox",
@@ -298,6 +300,15 @@ class MainWindow(DataTabMixin, ModelTabMixin, FitTabMixin, LDATabMixin, QMainWin
         self._connect("actionClear", "triggered", self.clear_data)
         self._connect("actionSaveFit", "triggered", lambda: self.save_fit_session(ask=True))
         self._connect("actionLoadFit", "triggered", self.load_fit_session)
+        self._connect(
+            "actionExportSpectra", "triggered", lambda *_: self.export_species_spectra()
+        )
+        self._connect(
+            "actionExportConcentrations", "triggered", lambda *_: self.export_concentrations()
+        )
+        self._connect(
+            "actionExportFitResults", "triggered", lambda *_: self.export_all_fit_results()
+        )
         self._connect("actionLoadAbsSpectrum", "triggered", self.load_abs_spectrum)
         self._connect("actionLoadEmSpectrum", "triggered", self.load_em_spectrum)
         self._connect("actionClearRefSpectra", "triggered", self.clear_ref_spectra)

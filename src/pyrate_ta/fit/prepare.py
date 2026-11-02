@@ -37,6 +37,9 @@ class ProblemData:
     noise_source: str | None = None
     source: str | None = None
     time_unit: str | None = None
+    probe_unit: str | None = None
+    probe_label: str | None = None
+    signal_unit: str | None = None
     n_delays_dropped: int = 0
     n_pixels_dropped: int = 0
     meta: dict = field(default_factory=dict)
@@ -169,6 +172,9 @@ def prepare(
         noise_source=_noise_source(dataset) if sigma is not None else None,
         source=getattr(dataset, "source", None),
         time_unit=units.get("unitsT_ltx"),
+        probe_unit=units.get("unitsL_ltx"),
+        probe_label=units.get("unitsL_lbl"),
+        signal_unit=units.get("unitsZ_ltx"),
         n_delays_dropped=n_t_dropped,
         n_pixels_dropped=n_p_dropped,
         meta={"data_type": getattr(dataset, "data_type", None), "n_detectors": n_det},

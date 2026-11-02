@@ -424,6 +424,215 @@ class FitTabMixin:
         QMessageBox.information(self, "Fit session", loaded.summary())
         self.statusBar().showMessage(f"Opened {loaded!r}", 8000)
 
+    def _export_stem(self, fit) -> str:
+        """Dataset filename stem used for default CSV and summary filenames."""
+        source = getattr(fit, "source", None) or getattr(self, "_current_path", None)
+        if source:
+            stem = Path(str(source)).stem
+            if stem:
+                return stem
+        return "pyrate_fit"
+
+    def _active_gsb_recovery_for_export(self):
+        """Return ``(species_ds, s_abs, bleach_res, want_gsb)`` matching GUI state."""
+        gsb_chk = getattr(self, "GSBRecoveryCheckBox", None)
+        want_gsb = bool(gsb_chk is not None and gsb_chk.isChecked())
+        species_ds = self._species_dataset() if self.dataset is not None else None
+        if not want_gsb or self.dataset is None:
+            return species_ds, None, None, want_gsb
+        resolved = self._resolved_species_spectra_data(recover_gsb=True)
+        if resolved is None:
+            return species_ds, None, None, want_gsb
+        species_ds, s_abs, _, _, _, _, bleach_res, _, _ = resolved
+        return species_ds, s_abs, bleach_res, want_gsb
+
+    def export_species_spectra(self, path: str | Path | None = None):
+        """Export fitted DAS/EAS/SAS spectra to CSV plus a companion ``.txt`` summary."""
+        if isinstance(path, bool):
+            path = None
+        fit = getattr(self, "fit_result", None)
+        if fit is None:
+            return None
+
+        ts = getattr(fit, "timestamp", None) or pr.make_timestamp()
+        kind = fit.spectra_kind
+        stem = self._export_stem(fit)
+        start_dir = Path(self._get_dialog_dir())
+
+        if path is None:
+            default_path = start_dir / f"{stem}_{kind}_{ts}.csv"
+            chosen, _ = QFileDialog.getSaveFileName(
+                self,
+                f"Export {kind} spectra",
+                str(default_path),
+                "CSV files (*.csv);;Tab-separated files (*.tsv);;All files (*)",
+            )
+            if not chosen:
+                return None
+            target = Path(chosen)
+        else:
+            target = Path(path)
+
+        species_ds, s_abs, bleach_res, want_gsb = self._active_gsb_recovery_for_export()
+        ds_ref = species_ds if species_ds is not None else self.dataset
+
+        try:
+            written = pr.export_spectra(
+                fit,
+                target,
+                dataset=ds_ref,
+                recover_gsb=want_gsb and (s_abs is None),
+                S_abs=s_abs,
+                timestamp=ts,
+            )
+            suffix_tag = f"_{kind}_{ts}"
+            base_stem = (
+                written.stem[: -len(suffix_tag)]
+                if written.stem.endswith(suffix_tag) and len(written.stem) > len(suffix_tag)
+                else (stem if written.stem == f"{stem}_{kind}_{ts}" else written.stem)
+            )
+            summary_path = pr.export_fit_summary(
+                fit,
+                written.parent / f"{base_stem}_fit_summary_{ts}.txt",
+                dataset=ds_ref,
+                timestamp=ts,
+                bleach_result=bleach_res,
+            )
+        except Exception as exc:
+            logger.debug("exporting %s spectra failed", kind, exc_info=True)
+            QMessageBox.warning(self, f"Export {kind} failed", str(exc))
+            return None
+
+        self._last_dir = str(written.parent)
+        self.statusBar().showMessage(
+            f"Exported {written.name} and {summary_path.name}", 6000
+        )
+        return written
+
+    def export_concentrations(self, path: str | Path | None = None):
+        """Export fitted concentration profiles ``C(t)`` to CSV plus a ``.txt`` summary."""
+        if isinstance(path, bool):
+            path = None
+        fit = getattr(self, "fit_result", None)
+        if fit is None:
+            return None
+
+        ts = getattr(fit, "timestamp", None) or pr.make_timestamp()
+        stem = self._export_stem(fit)
+        start_dir = Path(self._get_dialog_dir())
+
+        if path is None:
+            default_path = start_dir / f"{stem}_concentrations_{ts}.csv"
+            chosen, _ = QFileDialog.getSaveFileName(
+                self,
+                "Export concentration profiles C(t)",
+                str(default_path),
+                "CSV files (*.csv);;Tab-separated files (*.tsv);;All files (*)",
+            )
+            if not chosen:
+                return None
+            target = Path(chosen)
+        else:
+            target = Path(path)
+
+        species_ds, _, bleach_res, _ = self._active_gsb_recovery_for_export()
+        ds_ref = species_ds if species_ds is not None else self.dataset
+
+        try:
+            written = pr.export_concentrations(
+                fit,
+                target,
+                dataset=ds_ref,
+                timestamp=ts,
+            )
+            suffix_tag = f"_concentrations_{ts}"
+            base_stem = (
+                written.stem[: -len(suffix_tag)]
+                if written.stem.endswith(suffix_tag) and len(written.stem) > len(suffix_tag)
+                else (stem if written.stem == f"{stem}_concentrations_{ts}" else written.stem)
+            )
+            summary_path = pr.export_fit_summary(
+                fit,
+                written.parent / f"{base_stem}_fit_summary_{ts}.txt",
+                dataset=ds_ref,
+                timestamp=ts,
+                bleach_result=bleach_res,
+            )
+        except Exception as exc:
+            logger.debug("exporting concentration profiles failed", exc_info=True)
+            QMessageBox.warning(self, "Export concentrations failed", str(exc))
+            return None
+
+        self._last_dir = str(written.parent)
+        self.statusBar().showMessage(
+            f"Exported {written.name} and {summary_path.name}", 6000
+        )
+        return written
+
+    def export_all_fit_results(self, directory: str | Path | None = None):
+        """Export DAS/EAS/SAS CSV, concentrations CSV, and summary TXT into one folder."""
+        if isinstance(directory, bool):
+            directory = None
+        fit = getattr(self, "fit_result", None)
+        if fit is None:
+            return None
+
+        if directory is None:
+            chosen_dir = QFileDialog.getExistingDirectory(
+                self,
+                "Select folder to export fit results",
+                self._get_dialog_dir(),
+            )
+            if not chosen_dir:
+                return None
+            out_dir = Path(chosen_dir)
+        else:
+            out_dir = Path(directory)
+
+        ts = getattr(fit, "timestamp", None) or pr.make_timestamp()
+        stem = self._export_stem(fit)
+        kind = fit.spectra_kind
+        species_ds, s_abs, bleach_res, want_gsb = self._active_gsb_recovery_for_export()
+        ds_ref = species_ds if species_ds is not None else self.dataset
+
+        try:
+            spec_p = pr.export_spectra(
+                fit,
+                out_dir / f"{stem}_{kind}_{ts}.csv",
+                dataset=ds_ref,
+                recover_gsb=want_gsb and (s_abs is None),
+                S_abs=s_abs,
+                timestamp=ts,
+            )
+            conc_p = pr.export_concentrations(
+                fit,
+                out_dir / f"{stem}_concentrations_{ts}.csv",
+                dataset=ds_ref,
+                timestamp=ts,
+            )
+            sum_p = pr.export_fit_summary(
+                fit,
+                out_dir / f"{stem}_fit_summary_{ts}.txt",
+                dataset=ds_ref,
+                timestamp=ts,
+                bleach_result=bleach_res,
+            )
+        except Exception as exc:
+            logger.debug("exporting all fit results failed", exc_info=True)
+            QMessageBox.warning(self, "Export fit results failed", str(exc))
+            return None
+
+        self._last_dir = str(out_dir)
+        self.statusBar().showMessage(
+            f"Exported {spec_p.name}, {conc_p.name}, and {sum_p.name}", 6000
+        )
+        return pr.ExportedFitPaths(
+            spectra=spec_p,
+            concentrations=conc_p,
+            summary=sum_p,
+            timestamp=ts,
+        )
+
     def _show_fit_result(self, preview: bool = False):
         """Fill the read-outs, enable the views, and draw the outcome."""
         fit = self.fit_result
@@ -470,7 +679,9 @@ class FitTabMixin:
         otherwise.
         """
         button = getattr(self, "PlotSpeciesSpectraButton", None)
-        if button is None:
+        exp_btn = getattr(self, "ExportSpeciesButton", None)
+        exp_act = getattr(self, "actionExportSpectra", None)
+        if button is None and exp_btn is None and exp_act is None:
             return
         fit = getattr(self, "fit_result", None)
         if fit is not None:
@@ -481,7 +692,14 @@ class FitTabMixin:
                 str(pr.ModelType.SEQUENTIAL): "EAS",
                 str(pr.ModelType.TARGET): "SAS",
             }.get(self.model_type(), "spectra")
-        button.setText(f"Plot {kind}")
+        if button is not None:
+            button.setText(f"Plot {kind}")
+        exp_btn = getattr(self, "ExportSpeciesButton", None)
+        if exp_btn is not None:
+            exp_btn.setText(f"Export {kind}...")
+        exp_act = getattr(self, "actionExportSpectra", None)
+        if exp_act is not None:
+            exp_act.setText(f"&Export {kind} (CSV)...")
 
     @staticmethod
     def _quoting_kwargs() -> dict:

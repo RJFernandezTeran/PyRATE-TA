@@ -1023,3 +1023,147 @@ def test_lda_manual_alpha_spinbox_toggles_and_post_lda_buttons_gated(tmp_path):
         app.processEvents()
         win.close()
         app.processEvents()
+
+
+def test_export_buttons_layout_and_gui_workflow(tmp_path, ui_names):
+    """Export DAS/EAS/SAS and Export Conc buttons sit below Plot buttons and export CSV + TXT."""
+    assert {"ExportSpeciesButton", "ExportConcButton"} <= ui_names
+    assert {
+        "actionExportSpectra",
+        "actionExportConcentrations",
+        "actionExportFitResults",
+    } <= ui_names
+
+    root = ET.parse(UI_FILE).getroot()
+    fit_group = next(w for w in root.iter("widget") if w.get("name") == "FitControlGroup")
+    grid = fit_group.find("layout")
+    rows = {
+        item.find("widget").get("name"): int(item.get("row"))
+        for item in grid.findall("item")
+        if item.find("widget") is not None
+    }
+    assert rows["ExportSpeciesButton"] == rows["PlotSpeciesSpectraButton"] + 1
+    assert rows["ExportConcButton"] == rows["PlotConcProfileButton"] + 1
+    assert rows["PlotSteadyStateCheckBox"] > rows["ExportSpeciesButton"]
+
+    _require_qt()
+    from unittest.mock import patch
+
+    import numpy as np
+    import pymorgan as pm
+    from PyQt6.QtWidgets import QApplication
+
+    from pyrate_ta.gui.main_window import MainWindow
+    from pyrate_ta.results.fits import GlobalFit
+
+    app = QApplication.instance() or QApplication([])
+    t = np.linspace(0.1, 50.0, 20)
+    probe = np.linspace(450.0, 650.0, 30)
+    gs = np.exp(-0.5 * ((probe - 520.0) / 20.0) ** 2)
+    s1 = 0.8 * np.exp(-0.5 * ((probe - 485.0) / 18.0) ** 2) - 0.4 * gs
+    s2 = 0.4 * np.exp(-0.5 * ((probe - 560.0) / 22.0) ** 2)
+    S = np.column_stack([s1, s2])
+    C = np.column_stack([np.exp(-t / 3.0), np.exp(-t / 25.0)])
+    D = C @ S.T
+    ds = pm.Dataset1D(
+        D[:, :, None],
+        t,
+        probe,
+        {"unitsT_ltx": "ps", "unitsL_lbl": "Wavelength", "unitsL_ltx": "nm"},
+    )
+    pdat_file = tmp_path / "gui_export_demo.pdat"
+    pm.export_pdat(ds, pdat_file)
+    abs_file = tmp_path / "abs_gui.csv"
+    abs_file.write_text(
+        "Wavelength,Abs\n" + "\n".join(f"{x:.2f},{y:.5f}" for x, y in zip(probe, gs, strict=False))
+    )
+
+    win = MainWindow()
+    try:
+        # Disabled before fit
+        assert win.ExportSpeciesButton.isEnabled() is False
+        assert win.ExportConcButton.isEnabled() is False
+        assert win.actionExportSpectra.isEnabled() is False
+
+        win.load_path(str(pdat_file))
+        with patch("PyQt6.QtWidgets.QFileDialog.getOpenFileName", return_value=(str(abs_file), "")):
+            win.load_abs_spectrum()
+
+        # Dynamic button label tracks model family
+        win.ParallelButton.setChecked(True)
+        app.processEvents()
+        assert win.ExportSpeciesButton.text() == "Export DAS..."
+        win.SequentialButton.setChecked(True)
+        app.processEvents()
+        assert win.ExportSpeciesButton.text() == "Export EAS..."
+
+        # Attach fit result and enable post-fit controls
+        win.fit_result = GlobalFit(
+            taus=np.array([3.0, 25.0]),
+            tau_err=np.array([0.15, 1.2]),
+            is_fixed=np.array([False, False]),
+            S=S,
+            R=np.zeros_like(D),
+            model_type="Sequential",
+            t=t,
+            probe=probe,
+            C=C,
+            irf_fwhm=0.2,
+            source=str(pdat_file),
+            settings={"time_unit": "ps", "probe_unit": "nm", "probe_label": "Wavelength"},
+        )
+        for name in (
+            "ExportSpeciesButton",
+            "ExportConcButton",
+            "actionExportSpectra",
+            "actionExportConcentrations",
+            "actionExportFitResults",
+        ):
+            getattr(win, name).setEnabled(True)
+
+        ts = win.fit_result.timestamp
+        out_dir = tmp_path / "exports"
+        out_dir.mkdir()
+        eas_target = out_dir / f"gui_export_demo_EAS_{ts}.csv"
+        conc_target = out_dir / f"gui_export_demo_concentrations_{ts}.csv"
+
+        # Enable GSB recovery -> exported CSV should carry both EAS_* and EAS_*_abs columns
+        win.GSBRecoveryCheckBox.setChecked(True)
+        with patch(
+            "PyQt6.QtWidgets.QFileDialog.getSaveFileName", return_value=(str(eas_target), "")
+        ):
+            win.ExportSpeciesButton.click()
+        with patch(
+            "PyQt6.QtWidgets.QFileDialog.getSaveFileName", return_value=(str(conc_target), "")
+        ):
+            win.ExportConcButton.click()
+
+        summary_target = out_dir / f"gui_export_demo_fit_summary_{ts}.txt"
+        assert eas_target.exists()
+        assert conc_target.exists()
+        assert summary_target.exists()
+
+        eas_hdr = eas_target.read_text(encoding="utf-8").splitlines()[0].split(",")
+        assert len(eas_hdr) == 5
+        assert eas_hdr[1].startswith("EAS_A")
+        assert eas_hdr[3].startswith("EAS_A_abs")
+
+        conc_hdr = conc_target.read_text(encoding="utf-8").splitlines()[0].split(",")
+        assert conc_hdr[0] == "Delay (ps)"
+        assert conc_hdr[-1] == "IRF"
+
+        # Also verify File -> Export all fit results (CSV + TXT)... action end-to-end
+        all_dir = tmp_path / "all_exports"
+        all_dir.mkdir()
+        with patch(
+            "PyQt6.QtWidgets.QFileDialog.getExistingDirectory", return_value=str(all_dir)
+        ):
+            win.actionExportFitResults.trigger()
+
+        assert (all_dir / f"gui_export_demo_EAS_{ts}.csv").exists()
+        assert (all_dir / f"gui_export_demo_concentrations_{ts}.csv").exists()
+        assert (all_dir / f"gui_export_demo_fit_summary_{ts}.txt").exists()
+    finally:
+        app.processEvents()
+        win.close()
+        app.processEvents()

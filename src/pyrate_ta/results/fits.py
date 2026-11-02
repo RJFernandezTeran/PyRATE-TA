@@ -16,6 +16,7 @@ as precision.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 import numpy as np
@@ -23,6 +24,10 @@ import numpy as np
 from ..log import get_logger
 
 logger = get_logger(__name__)
+
+
+def _default_timestamp() -> str:
+    return datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
 def covariance_from_jacobian(J, residuals, *, weighted: bool, dof: int):
@@ -127,6 +132,7 @@ class KineticFit:
     sorted_by_lifetime: bool = False
     permutation: np.ndarray | None = None
     settings: dict = field(default_factory=dict)
+    timestamp: str = field(default_factory=_default_timestamp)
 
     # ------------------------------------------------------------------ #
     #                              Reading                               #
@@ -248,6 +254,145 @@ class KineticFit:
     def log_summary(self) -> None:
         """Send :meth:`summary` to the ``pyrate`` logger at info level."""
         logger.info("%s", self.summary())
+
+    # ------------------------------------------------------------------ #
+    #                             Exporting                              #
+    # ------------------------------------------------------------------ #
+    def format_report(
+        self,
+        *,
+        dataset: Any = None,
+        timestamp: str | None = None,
+        bleach_result: Any = None,
+    ) -> str:
+        """Format a detailed terminal-style fit report string."""
+        from ..io.export import format_fit_report
+
+        return format_fit_report(
+            self, dataset=dataset, timestamp=timestamp, bleach_result=bleach_result
+        )
+
+    def export_spectra(
+        self,
+        path=None,
+        *,
+        dataset: Any = None,
+        recover_gsb: bool = False,
+        S_abs: Any = None,
+        gs_spectrum: Any = None,
+        em_spectrum: Any = None,
+        include_artifact: bool = False,
+        metadata: bool = False,
+        timestamp: str | None = None,
+        write_summary: bool = False,
+        directory=None,
+        fmt: str = "%.12g",
+    ):
+        """Export DAS/EAS/SAS spectra to a single-header CSV file."""
+        from ..io.export import export_spectra
+
+        return export_spectra(
+            self,
+            path,
+            dataset=dataset,
+            recover_gsb=recover_gsb,
+            S_abs=S_abs,
+            gs_spectrum=gs_spectrum,
+            em_spectrum=em_spectrum,
+            include_artifact=include_artifact,
+            metadata=metadata,
+            timestamp=timestamp,
+            write_summary=write_summary,
+            directory=directory,
+            fmt=fmt,
+        )
+
+    def export_concentrations(
+        self,
+        path=None,
+        *,
+        dataset: Any = None,
+        normalise: bool = False,
+        include_irf: bool = True,
+        include_artifact: bool = False,
+        metadata: bool = False,
+        timestamp: str | None = None,
+        write_summary: bool = False,
+        directory=None,
+        fmt: str = "%.12g",
+    ):
+        """Export concentration profiles ``C(t)`` to a single-header CSV file."""
+        from ..io.export import export_concentrations
+
+        return export_concentrations(
+            self,
+            path,
+            dataset=dataset,
+            normalise=normalise,
+            include_irf=include_irf,
+            include_artifact=include_artifact,
+            metadata=metadata,
+            timestamp=timestamp,
+            write_summary=write_summary,
+            directory=directory,
+            fmt=fmt,
+        )
+
+    def export_summary(
+        self,
+        path=None,
+        *,
+        dataset: Any = None,
+        timestamp: str | None = None,
+        bleach_result: Any = None,
+        directory=None,
+    ):
+        """Export the companion human-readable ``.txt`` fit report."""
+        from ..io.export import export_fit_summary
+
+        return export_fit_summary(
+            self,
+            path,
+            dataset=dataset,
+            timestamp=timestamp,
+            bleach_result=bleach_result,
+            directory=directory,
+        )
+
+    def export_results(
+        self,
+        directory=None,
+        *,
+        dataset: Any = None,
+        recover_gsb: bool = False,
+        S_abs: Any = None,
+        gs_spectrum: Any = None,
+        em_spectrum: Any = None,
+        normalise_concentrations: bool = False,
+        include_irf: bool = True,
+        include_artifact: bool = False,
+        metadata: bool = False,
+        timestamp: str | None = None,
+        fmt: str = "%.12g",
+    ):
+        """Export spectra CSV, concentrations CSV, and summary TXT with one timestamp."""
+        from ..io.export import export_fit_results
+
+        return export_fit_results(
+            self,
+            directory,
+            dataset=dataset,
+            recover_gsb=recover_gsb,
+            S_abs=S_abs,
+            gs_spectrum=gs_spectrum,
+            em_spectrum=em_spectrum,
+            normalise_concentrations=normalise_concentrations,
+            include_irf=include_irf,
+            include_artifact=include_artifact,
+            metadata=metadata,
+            timestamp=timestamp,
+            fmt=fmt,
+        )
 
 
 @dataclass
