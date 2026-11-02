@@ -14,7 +14,7 @@ urls = { Homepage = "https://github.com/RJFernandezTeran/PyRATE-TA", Documentati
 dependencies = [
     # PyMORGAN owns loading, the Dataset objects, Settings and every plotter.
     # The dependency is one-way: pyrate_ta imports pymorgan, never the reverse.
-    "pymorgan>=0.6",
+    "pymorgan>=1.261103.2",
     "numpy>=1.26.0",
     "scipy>=1.12.0",
     "tomlkit>=0.12.0",
