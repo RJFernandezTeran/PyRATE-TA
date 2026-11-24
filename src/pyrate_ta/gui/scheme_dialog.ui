@@ -22,8 +22,30 @@
            <property name="text"><string>Update K graph</string></property>
            <property name="toolTip"><string>Parse the scheme, check that it builds a valid rate matrix, and redraw the graph</string></property></widget></item>
          <item><widget class="QComboBox" name="TemplateCombo">
-           <property name="toolTip"><string>Start from a predefined scheme</string></property></widget></item>
+           <property name="toolTip"><string>Start from a predefined template or a saved custom model</string></property></widget></item>
          <item><spacer name="buttonSpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property>
+           <property name="sizeHint" stdset="0"><size><width>20</width><height>10</height></size></property></spacer></item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="libraryRow">
+         <item><widget class="QPushButton" name="SaveSchemeButton">
+           <property name="text"><string>Save...</string></property>
+           <property name="toolTip"><string>Validate and save this kinetic scheme to your plain-text model library</string></property></widget></item>
+         <item><widget class="QPushButton" name="DeleteSchemeButton">
+           <property name="enabled"><bool>false</bool></property>
+           <property name="text"><string>Delete</string></property>
+           <property name="toolTip"><string>Delete the currently selected saved user scheme from disk</string></property></widget></item>
+         <item><widget class="QPushButton" name="ImportSchemeButton">
+           <property name="text"><string>Import...</string></property>
+           <property name="toolTip"><string>Load a kinetic scheme from a plain-text (.txt) file</string></property></widget></item>
+         <item><widget class="QPushButton" name="ExportSchemeButton">
+           <property name="text"><string>Export...</string></property>
+           <property name="toolTip"><string>Export the current scheme text to a standalone .txt file</string></property></widget></item>
+         <item><widget class="QPushButton" name="OpenSchemesDirButton">
+           <property name="text"><string>Open Folder</string></property>
+           <property name="toolTip"><string>Open the saved user schemes folder in your file explorer</string></property></widget></item>
+         <item><spacer name="librarySpacer"><property name="orientation"><enum>Qt::Horizontal</enum></property>
            <property name="sizeHint" stdset="0"><size><width>20</width><height>10</height></size></property></spacer></item>
         </layout>
        </item>

@@ -265,6 +265,7 @@ class Settings:
 
     # --- Paths ------------------------------------------------------------ #
     default_datadir: Path | None = None
+    schemes_dir: Path | None = None
 
     def __post_init__(self) -> None:
         """Coerce every field to its declared type (enums from their value)."""
@@ -373,6 +374,7 @@ class Settings:
             "autosave_session": "gui",
             # [paths]
             "default_datadir": "paths",
+            "schemes_dir": "paths",
         }
 
     @staticmethod
@@ -455,6 +457,10 @@ class Settings:
             "open_scheme_after_fit": "Open the kinetic-scheme diagram automatically after a fit.",
             "autosave_session": "Write the fit session next to the dataset after a fit.",
             "default_datadir": "Directory the file dialog opens in; empty means the home folder.",
+            "schemes_dir": (
+                "Directory for saved custom target-analysis schemes (.txt); "
+                "empty uses ~/.config/pyrate_ta/schemes."
+            ),
         }
 
     @staticmethod
@@ -588,6 +594,15 @@ _SPEC_OVERRIDES: dict[str, dict[str, Any]] = {
         "kind": "directory",
         "tab": "paths",
         "tooltip": "Directory the file dialog opens in; empty means the home folder.",
+    },
+    "schemes_dir": {
+        "label": "Custom schemes directory",
+        "kind": "directory",
+        "tab": "paths",
+        "tooltip": (
+            "Directory for saved custom target-analysis schemes (.txt); "
+            "empty uses ~/.config/pyrate_ta/schemes."
+        ),
     },
 }
 

@@ -391,8 +391,8 @@ class FitTabMixin:
         try:
             written = pr.save_fit(path, self.fit_result)
         except Exception as exc:
-            logger.debug("saving the fit session failed", exc_info=True)
-            QMessageBox.warning(self, "Could not save", str(exc))
+            logger.exception("saving the fit session failed")
+            QMessageBox.critical(self, "Could not save", str(exc))
             return
         self._last_dir = str(Path(path).parent)
         self.statusBar().showMessage(f"Fit session saved to {written.name}", 6000)
@@ -1269,19 +1269,23 @@ class FitTabMixin:
 
     def edit_scheme(self):
         """Open the K-matrix editor and adopt the scheme it returns."""
-        from ..scheme_dialog import edit_scheme
+        try:
+            from ..scheme_dialog import edit_scheme
 
-        previous = getattr(self, "custom_scheme", None)
-        scheme = edit_scheme(self, text=previous.source_text if previous else None)
-        if scheme is None:
-            return
-        self.custom_scheme = scheme
-        self.TargetButton.setChecked(True)
-        # The rate table must match the scheme: one row per rate constant, named.
-        self._set_component_count(scheme.n_rates)
-        self.RateFitTable.setVerticalHeaderLabels(list(scheme.parameter_names()))
-        self.statusBar().showMessage(f"Scheme: {scheme.label}", 8000)
-        logger.info("Target scheme set: %s", scheme.label)
+            previous = getattr(self, "custom_scheme", None)
+            scheme = edit_scheme(self, text=previous.source_text if previous else None)
+            if scheme is None:
+                return
+            self.custom_scheme = scheme
+            self.TargetButton.setChecked(True)
+            # The rate table must match the scheme: one row per rate constant, named.
+            self._set_component_count(scheme.n_rates)
+            self.RateFitTable.setVerticalHeaderLabels(list(scheme.parameter_names()))
+            self.statusBar().showMessage(f"Scheme: {scheme.label}", 8000)
+            logger.info("Target scheme set: %s", scheme.label)
+        except Exception as exc:
+            logger.exception("Target scheme editor failed: %s", exc)
+            QMessageBox.critical(self, "Scheme Error", f"Could not update kinetic scheme:\n{exc}")
 
     def scheme_source(self):
         """``(object, taus)`` describing the model as it stands right now.

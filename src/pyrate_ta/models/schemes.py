@@ -289,10 +289,18 @@ TARGET_SCHEMES: dict[str, TargetScheme] = {
 
 
 def get_scheme(key: str) -> TargetScheme:
-    """Look up a target scheme by key, listing the alternatives on failure."""
-    try:
+    """Look up a target scheme by key (built-in first, then saved user schemes)."""
+    if key in TARGET_SCHEMES:
         return TARGET_SCHEMES[key]
+
+    from .user_schemes import list_user_schemes, load_user_scheme
+
+    try:
+        return load_user_scheme(key)
     except KeyError:
+        user_keys = sorted(list_user_schemes())
+        avail = ", ".join(sorted(TARGET_SCHEMES))
+        extra = f"; user schemes: {', '.join(user_keys)}" if user_keys else ""
         raise KeyError(
-            f"unknown target scheme {key!r}; available: {', '.join(sorted(TARGET_SCHEMES))}"
+            f"unknown target scheme {key!r}; available: {avail}{extra}"
         ) from None

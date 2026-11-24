@@ -69,6 +69,15 @@ from .schemes import (
     rates_from_lifetimes,
     sequential_K,
 )
+from .user_schemes import (
+    UserSchemeEntry,
+    delete_user_scheme,
+    list_user_schemes,
+    load_user_scheme,
+    rename_user_scheme,
+    save_user_scheme,
+    user_schemes_dir,
+)
 
 __all__ = [
     # models
@@ -86,6 +95,13 @@ __all__ = [
     "parse_scheme_text",
     "check_scheme_text",
     "SchemeSyntaxError",
+    "UserSchemeEntry",
+    "user_schemes_dir",
+    "list_user_schemes",
+    "load_user_scheme",
+    "save_user_scheme",
+    "delete_user_scheme",
+    "rename_user_scheme",
     "parallel_K",
     "sequential_K",
     "default_c0",
