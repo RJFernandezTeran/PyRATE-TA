@@ -1,0 +1,2 @@
+# uv resolves this itself; keep it LF so it is stable across platforms
+uv.lock text eol=lf linguist-generated=true
